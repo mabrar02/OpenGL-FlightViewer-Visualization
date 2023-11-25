@@ -17,8 +17,19 @@ void printKeyboardControls(void);
 void positionCamera(void);
 void drawOrigin(void);
 
+int originalWindowPosX = 100;
+int originalWindowPosY = 150;
 int originalWidth = 900;
 int originalHeight = 600;
+
+int wireframeToggled = 0;
+int fullScreenToggled = 0;
+int seaSkyToggled = 0;
+int mountainToggled = 0;
+int fogToggled = 0; 
+
+GLfloat moveSpeed = 0.01;
+GLfloat speedIncrement = 0.001;
 
 /************************************************************************
 
@@ -39,7 +50,20 @@ void myDisplay(void)
 
 	positionCamera();
 
-	drawOrigin();
+	if (wireframeToggled) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	}
+	else {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	}
+	
+	if (seaSkyToggled) {
+
+	}
+	else {
+		drawOrigin();
+	}
+
 
 
 
@@ -50,8 +74,7 @@ void myDisplay(void)
 void drawOrigin(void) {
 
 
-
-
+	//origin lines
 	glBegin(GL_LINES);
 	glLineWidth(5.0f);
 	glColor3f(1.0, 0.0, 0.0);
@@ -69,15 +92,47 @@ void drawOrigin(void) {
 
 	glLineWidth(1.0f);
 	glColor3f(1.0, 1.0, 1.0);
+	
+	// origin ball
 	GLUquadric* quad = gluNewQuadric();
 	glPushMatrix();
-	glScalef(0.005, 0.005, 0.005);
-	gluSphere(quad, 1, 32, 32);
+	glScalef(0.01, 0.01, 0.01);
+	gluSphere(quad, 1, 20, 20);
 	glPopMatrix();
+
+	glColor3f(129.0 / 255.0, 167.0 / 255.0, 230.0 / 255.0);
+	glPushMatrix();
+
+	glScalef(5.0, 0.0, 5.0);
+
+	glBegin(GL_POLYGON);
+	glVertex3f(-0.5, 0, 0.5);
+	glVertex3f(-0.5, 0, -0.5);
+	glVertex3f(0.5, 0, -0.5);
+	glVertex3f(0.5, 0, 0.5);
+	glEnd();
+
+	glBegin(GL_LINES);
+	for (GLfloat z = -0.4; z <= 0.4; z += 0.05) {
+		glVertex3f(-0.5, 0, z);
+		glVertex3f(0.5, 0, z);
+	}
+	glEnd();
+	
+	glBegin(GL_LINES);
+	for (GLfloat x = -0.4; x <= 0.4; x += 0.05) {
+		glVertex3f(x, 0, -0.5);
+		glVertex3f(x, 0, 0.5);
+	}
+	glEnd();
+
+	glPopMatrix();
+
+	glColor3f(1.0, 1.0, 1.0);
 }
 
 void positionCamera(void) {
-	gluLookAt(0.1, 0.1, 0.1, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+	gluLookAt(1, 1, 1, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 }
 
 
@@ -123,6 +178,77 @@ void myReshape(int newWidth, int newHeight) {
 	gluPerspective(45, (GLfloat) newWidth / (GLfloat) newHeight, 0.1, 20);
 
 	glMatrixMode(GL_MODELVIEW);
+	glutPostRedisplay();
+}
+
+
+void myKeyboard(unsigned char key, int x, int y) {
+	if (key == 'q') {
+		exit(0);
+	}
+	else if (key == 'w') {
+		if (wireframeToggled == 0) {
+			wireframeToggled = 1;
+		}
+		else {
+			wireframeToggled = 0;
+		}
+	}
+	else if (key == 'f') {
+		if (fullScreenToggled == 0) {
+			fullScreenToggled = 1;
+			glutFullScreen();
+		}
+		else {
+			fullScreenToggled = 0;
+			glutPositionWindow(originalWindowPosX, originalWindowPosY);
+			glutReshapeWindow(originalWidth, originalHeight);
+		}
+	}
+	else if (key == 's') {
+		if (seaSkyToggled == 0) {
+			seaSkyToggled = 1;
+		}
+		else {
+			seaSkyToggled = 0;
+		}
+	}
+	else if (key == 'g') {
+		if (fogToggled == 0) {
+			fogToggled = 1;
+		}
+		else {
+			fogToggled = 0;
+		}
+	}
+	else if (key == 'm') {
+		if (mountainToggled == 0) {
+			mountainToggled = 1;
+		}
+		else {
+			mountainToggled = 0;
+		}
+	}
+	glutPostRedisplay();
+}
+
+
+void mySpecialKeyboard(int key, int x, int y) {
+	switch (key) {
+		case GLUT_KEY_UP:
+			break;
+		case GLUT_KEY_DOWN:
+			break;
+		case GLUT_KEY_PAGE_UP:
+			moveSpeed += speedIncrement;
+			break;
+		case GLUT_KEY_PAGE_DOWN:
+			if (moveSpeed - speedIncrement > 0) {
+				moveSpeed -= speedIncrement;
+			}
+			break;
+	}
+	glutPostRedisplay();
 }
 
 /************************************************************************
@@ -149,7 +275,7 @@ void main(int argc, char** argv)
 	glutInitWindowSize(originalWidth, originalHeight);
 
 	// set window position on screen
-	glutInitWindowPosition(100, 150);
+	glutInitWindowPosition(originalWindowPosX, originalWindowPosY);
 
 	// open the screen window
 	glutCreateWindow("Flight Viewer");
@@ -159,6 +285,9 @@ void main(int argc, char** argv)
 
 	glutReshapeFunc(myReshape);
 
+	glutKeyboardFunc(myKeyboard);
+
+	glutSpecialFunc(mySpecialKeyboard);
 
 	// register the blend function to enable opacity fading
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
