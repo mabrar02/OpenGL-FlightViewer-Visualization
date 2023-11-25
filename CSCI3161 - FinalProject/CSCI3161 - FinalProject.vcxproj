@@ -135,7 +135,7 @@
     <ClCompile Include="FlightViewer.c" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="D:\Coding\displayJPG\displayPPM\mount03.jpg" />
+    <Image Include="mount03.jpg" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

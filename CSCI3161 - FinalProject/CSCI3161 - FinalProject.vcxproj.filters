@@ -25,8 +25,8 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="D:\Coding\displayJPG\displayPPM\mount03.jpg">
-      <Filter>Resource Files</Filter>
+    <Image Include="mount03.jpg">
+      <Filter>Source Files</Filter>
     </Image>
   </ItemGroup>
 </Project>
