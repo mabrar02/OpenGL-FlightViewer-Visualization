@@ -68,6 +68,22 @@ GLfloat speedIncrement = 0.001;
 GLfloat theta = 0.0;
 
 
+GLfloat lightPos[] = { 10.0, 10.0, 10.0, 1.0 };
+GLfloat zeroMaterial[] = { 0.0, 0.0, 0.0, 1.0 };
+
+GLfloat yellowDiffuse[] = {224.0 / 255.0, 185.0 / 255.0, 76.0 / 255.0, 1.0};
+GLfloat blackDiffuse[] = { 0.0, 0.0, 0.0, 1.0};
+GLfloat purpleDiffuse[] = { 154.0 / 255.0, 94.0 / 255.0, 191.0 / 255.0, 1.0};
+GLfloat blueDiffuse[] = { 23.0 / 255.0, 37.0 / 255.0, 128.0 / 255.0 , 1.0};
+GLfloat greenDiffuse[] = { 0, 1, 0 , 1.0 };
+GLfloat lightblueDiffuse[] = { 129.0 / 255.0, 167.0 / 255.0, 230.0 / 255.0 , 1.0 };
+GLfloat greyDiffuse[] = { 0.7, 0.7, 0.7 , 1.0 };
+GLfloat redDiffuse[] = { 1.0, 0.0, 0.0, 1.0 };
+GLfloat whiteDiffuse[] = { 1.0, 1.0, 1.0, 1.0 };
+GLfloat whiteSpecular[] = { 1.0, 1.0, 1.0, 1.0 };
+
+GLfloat cessnaShininess = 30.0;
+
 /************************************************************************
 
 	Function:		myDisplay
@@ -86,6 +102,8 @@ void myDisplay(void)
 	glLoadIdentity();
 
 	positionCamera();
+
+	glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
 
 	if (wireframeToggled) {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -113,17 +131,21 @@ void positionCamera(void) {
 }
 
 void drawSeaSky(void) {
+
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, blueDiffuse);
 	GLUquadric* seaQuadricPtr = gluNewQuadric();
 	gluQuadricNormals(seaQuadricPtr, GLU_SMOOTH);
 	gluQuadricTexture(seaQuadricPtr, GL_TRUE);
-	glPushMatrix();
 
+	glPushMatrix();
 	glTranslatef(0, 0.5, 0);
 	glRotatef(90, 1, 0, 0);
 	glColor3f(0, 242.0 / 255.0, 1.0);
 	gluDisk(seaQuadricPtr, 0, 12, 50, 8);
 	glPopMatrix();
 
+
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, redDiffuse);
 	GLUquadric* skyQuadricPtr = gluNewQuadric();
 	gluQuadricNormals(skyQuadricPtr, GLU_SMOOTH);
 	gluQuadricTexture(skyQuadricPtr, GL_TRUE);
@@ -144,22 +166,27 @@ void drawCessna() {
 
 	for (int i = 1; i < CESSNA_OBJECT_COUNT; i++) {
 		if (i <= 4 || (i >= 9 && i <= 14) || i >= 27) {
-			glColor3f(224.0 / 255.0, 185.0 / 255.0, 76.0 / 255.0);
+			glMaterialfv(GL_FRONT, GL_DIFFUSE, yellowDiffuse);
 		}
 		else if (i == 8 || (i >= 15 && i <= 26)) {
-			glColor3f(23.0 / 255.0, 37.0 / 255.0, 128.0 / 255.0);
+			glMaterialfv(GL_FRONT, GL_DIFFUSE, blueDiffuse);
 		}
 		else if (i == 7) {
-			glColor3f(154.0 / 255.0, 94.0 / 255.0, 191.0 / 255.0);
+			glMaterialfv(GL_FRONT, GL_DIFFUSE, purpleDiffuse);
 		}
 		else {
-			glColor3f(0.0, 0.0, 0.0);
+			glMaterialfv(GL_FRONT, GL_DIFFUSE, blackDiffuse);
 		}
+
+		glMaterialfv(GL_FRONT, GL_AMBIENT, zeroMaterial);
+		glMaterialfv(GL_FRONT, GL_SPECULAR, whiteSpecular);
+		glMaterialf(GL_FRONT, GL_SHININESS, cessnaShininess);
 
 		for (int j = 0; j < cessnaParts[i].numPolygons; j++) {
 			glBegin(GL_POLYGON);
 
 			for (int k = 0; k < cessnaParts[i].polygons[j].numVertices; k++) {
+				glNormal3fv(cessnaNormals[cessnaParts[i].polygons[j].indices[k] - 1]);
 				glVertex3fv(cessnaPoints[cessnaParts[i].polygons[j].indices[k]-1]);
 			}
 			glEnd();
@@ -182,15 +209,21 @@ void drawPropellers() {
 
 	for (int i = 1; i < 3; i++) {
 		if (i == 1) {
-			glColor3f(0.7, 0.7, 0.7);
+			glMaterialfv(GL_FRONT, GL_DIFFUSE, greyDiffuse);
 		}
 		else {
-			glColor3f(1.0, 0.0, 0.0);
+			glMaterialfv(GL_FRONT, GL_DIFFUSE, redDiffuse);
 		}
+
+		glMaterialfv(GL_FRONT, GL_AMBIENT, zeroMaterial);
+		glMaterialfv(GL_FRONT, GL_SPECULAR, whiteSpecular);
+		glMaterialf(GL_FRONT, GL_SHININESS, cessnaShininess);
+
 		for (int j = 0; j < propParts[i].numPolygons; j++) {
 			glBegin(GL_POLYGON);
 
 			for (int k = 0; k < propParts[i].polygons[j].numVertices; k++) {
+				glNormal3fv(propNormals[propParts[i].polygons[j].indices[k] - 1]);
 				glVertex3fv(propPoints[propParts[i].polygons[j].indices[k] - 1]);
 			}
 			glEnd();
@@ -205,11 +238,15 @@ void drawPropellers() {
 
 	for (int i = 1; i < 3; i++) {
 		if (i == 1) {
-			glColor3f(0.7, 0.7, 0.7);
+			glMaterialfv(GL_FRONT, GL_DIFFUSE, greyDiffuse);
 		}
 		else {
-			glColor3f(1.0, 0.0, 0.0);
+			glMaterialfv(GL_FRONT, GL_DIFFUSE, redDiffuse);
 		}
+
+		glMaterialfv(GL_FRONT, GL_AMBIENT, zeroMaterial);
+		glMaterialfv(GL_FRONT, GL_SPECULAR, whiteSpecular);
+		glMaterialf(GL_FRONT, GL_SHININESS, cessnaShininess);
 		for (int j = 0; j < propParts[i].numPolygons; j++) {
 			glBegin(GL_POLYGON);
 
@@ -372,25 +409,30 @@ void movePropeller(int x, int y, int z) {
 
 void drawOrigin(void) {
 
+	glMaterialfv(GL_FRONT, GL_AMBIENT, zeroMaterial);
+	glMaterialfv(GL_FRONT, GL_SPECULAR, zeroMaterial);
+	glMaterialf(GL_FRONT, GL_SHININESS, 0.0f);
 
 	//origin lines
 	glBegin(GL_LINES);
 	glLineWidth(5.0f);
-	glColor3f(1.0, 0.0, 0.0);
+
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, redDiffuse);
 	glVertex3f(0.0, 0.0, 0.0);
 	glVertex3f(0.5, 0.0, 0.0);
 
-	glColor3f(0.0, 1.0, 0.0);
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, greenDiffuse);
 	glVertex3f(0.0, 0.0, 0.0);
 	glVertex3f(0.0, 0.5, 0.0);
 
-	glColor3f(0.0, 0.0, 1.0);
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, blueDiffuse);
 	glVertex3f(0.0, 0.0, 0.0);
 	glVertex3f(0.0, 0.0, 0.5);
 	glEnd();
 
 	glLineWidth(1.0f);
 	glColor3f(1.0, 1.0, 1.0);
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, whiteDiffuse);
 	
 	// origin ball
 	GLUquadric* quad = gluNewQuadric();
@@ -399,7 +441,8 @@ void drawOrigin(void) {
 	gluSphere(quad, 1, 20, 20);
 	glPopMatrix();
 
-	glColor3f(129.0 / 255.0, 167.0 / 255.0, 230.0 / 255.0);
+
+	glMaterialfv(GL_FRONT, GL_DIFFUSE, lightblueDiffuse);
 	glPushMatrix();
 
 	glScalef(10.0, 0.0, 10.0);
@@ -541,6 +584,20 @@ void mySpecialKeyboard(int key, int x, int y) {
 *************************************************************************/
 void initializeGL(void)
 {
+	GLfloat ambientLight[] = { 0.0, 0.0, 0.0, 1.0 };
+	GLfloat diffuseLight[] = { 1.0, 1.0, 1.0, 1.0 };
+	GLfloat specularLight[] = { 1.0, 1.0, 1.0, 1.0 };
+
+	GLfloat globalAmbientLight[] = { 1.0, 1.0, 1.0, 1.0 };
+	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, globalAmbientLight);
+
+	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
+	glLightfv(GL_LIGHT0, GL_SPECULAR, diffuseLight);
+	glLightfv(GL_LIGHT0, GL_DIFFUSE, specularLight);
+
+	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT0);
+	glEnable(GL_NORMALIZE);
 	// enable depth testing
 	glEnable(GL_DEPTH_TEST);
 
