@@ -137,6 +137,10 @@
   <ItemGroup>
     <Image Include="mount03.jpg" />
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="cessna.txt" />
+    <Text Include="propeller.txt" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

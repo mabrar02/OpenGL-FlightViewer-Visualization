@@ -11,16 +11,47 @@
 
 #define textureWidth  64
 #define textureHeight 64
+#define CESSNA_POINT_COUNT 6763
+#define CESSNA_FACE_COUNT 3639
+#define PROP_POINT_COUNT 6763
+#define PROP_FACE_COUNT 132
+#define CESSNA_OBJECT_COUNT 34
 
 
 void printKeyboardControls(void);
 void positionCamera(void);
 void drawOrigin(void);
+void drawCessna(void);
+void drawPropellers(void);
+void drawSeaSky(void);
+
+
+typedef struct {
+	int indices[50];
+	int numVertices;
+} PolygonShape;
+
+typedef struct {
+	PolygonShape polygons[700];
+	int numPolygons;
+
+} PlaneObject;
+
+PlaneObject cessnaParts[CESSNA_OBJECT_COUNT];
+GLfloat cessnaPoints[CESSNA_POINT_COUNT][3];
+GLfloat cessnaNormals[CESSNA_POINT_COUNT][3];
+
+PlaneObject propParts[3];
+GLfloat propPoints[PROP_POINT_COUNT][3];
+GLfloat propNormals[PROP_POINT_COUNT][3];
+
 
 int originalWindowPosX = 100;
 int originalWindowPosY = 150;
 int originalWidth = 900;
 int originalHeight = 600;
+int currentWidth = 900;
+int currentHeight = 600;
 
 int wireframeToggled = 0;
 int fullScreenToggled = 0;
@@ -28,8 +59,14 @@ int seaSkyToggled = 0;
 int mountainToggled = 0;
 int fogToggled = 0; 
 
+GLfloat camPos[3] = { 0.0, 2.5, 10.0 };
+
+GLfloat turnAngle = 0;
 GLfloat moveSpeed = 0.01;
 GLfloat speedIncrement = 0.001;
+
+GLfloat theta = 0.0;
+
 
 /************************************************************************
 
@@ -58,17 +95,279 @@ void myDisplay(void)
 	}
 	
 	if (seaSkyToggled) {
-
+		drawSeaSky();
 	}
 	else {
 		drawOrigin();
 	}
 
 
-
+	drawCessna();
 
 	// swap the drawing buffers
 	glutSwapBuffers();
+}
+
+void positionCamera(void) {
+	gluLookAt(camPos[0], camPos[1], camPos[2], 0, 0, 0, 0.0, 1.0, 0.0);
+}
+
+void drawSeaSky(void) {
+	GLUquadric* seaQuadricPtr = gluNewQuadric();
+	gluQuadricNormals(seaQuadricPtr, GLU_SMOOTH);
+	gluQuadricTexture(seaQuadricPtr, GL_TRUE);
+	glPushMatrix();
+
+	glTranslatef(0, 0.5, 0);
+	glRotatef(90, 1, 0, 0);
+	glColor3f(0, 242.0 / 255.0, 1.0);
+	gluDisk(seaQuadricPtr, 0, 12, 50, 8);
+	glPopMatrix();
+
+	GLUquadric* skyQuadricPtr = gluNewQuadric();
+	gluQuadricNormals(skyQuadricPtr, GLU_SMOOTH);
+	gluQuadricTexture(skyQuadricPtr, GL_TRUE);
+
+	glPushMatrix();
+	glRotatef(-90, 1, 0, 0);
+	glColor3f(252.0/255.0, 109.0/255.0, 61.0/255.0);
+	gluCylinder(skyQuadricPtr, 10, 10, 20, 20, 20);
+	glPopMatrix();
+}
+
+void drawCessna() {
+	glPushMatrix();
+
+	glTranslatef(0, 1.0, 7.0);
+	glRotatef(-90, 0, 1, 0);
+	glRotatef(-45 * turnAngle, 1, 0, 0);
+
+	for (int i = 1; i < CESSNA_OBJECT_COUNT; i++) {
+		if (i <= 4 || (i >= 9 && i <= 14) || i >= 27) {
+			glColor3f(224.0 / 255.0, 185.0 / 255.0, 76.0 / 255.0);
+		}
+		else if (i == 8 || (i >= 15 && i <= 26)) {
+			glColor3f(23.0 / 255.0, 37.0 / 255.0, 128.0 / 255.0);
+		}
+		else if (i == 7) {
+			glColor3f(154.0 / 255.0, 94.0 / 255.0, 191.0 / 255.0);
+		}
+		else {
+			glColor3f(0.0, 0.0, 0.0);
+		}
+
+		for (int j = 0; j < cessnaParts[i].numPolygons; j++) {
+			glBegin(GL_POLYGON);
+
+			for (int k = 0; k < cessnaParts[i].polygons[j].numVertices; k++) {
+				glVertex3fv(cessnaPoints[cessnaParts[i].polygons[j].indices[k]-1]);
+			}
+			glEnd();
+		}
+	}
+	drawPropellers();
+
+	glPopMatrix();
+
+	glColor3f(1.0, 1.0, 1.0);
+}
+
+void drawPropellers() {
+
+
+	glPushMatrix();
+	glTranslatef(-0.25, -0.15, 0.35);
+	glRotatef(-theta, 1, 0, 0);
+	glScalef(0.75, 0.75, 0.75);
+
+	for (int i = 1; i < 3; i++) {
+		if (i == 1) {
+			glColor3f(0.7, 0.7, 0.7);
+		}
+		else {
+			glColor3f(1.0, 0.0, 0.0);
+		}
+		for (int j = 0; j < propParts[i].numPolygons; j++) {
+			glBegin(GL_POLYGON);
+
+			for (int k = 0; k < propParts[i].polygons[j].numVertices; k++) {
+				glVertex3fv(propPoints[propParts[i].polygons[j].indices[k] - 1]);
+			}
+			glEnd();
+		}
+	}
+	glPopMatrix();
+
+	glPushMatrix();
+	glTranslatef(-0.25, -0.15, -0.35);
+	glRotatef(theta, 1, 0, 0);
+	glScalef(0.75, 0.75, 0.75);
+
+	for (int i = 1; i < 3; i++) {
+		if (i == 1) {
+			glColor3f(0.7, 0.7, 0.7);
+		}
+		else {
+			glColor3f(1.0, 0.0, 0.0);
+		}
+		for (int j = 0; j < propParts[i].numPolygons; j++) {
+			glBegin(GL_POLYGON);
+
+			for (int k = 0; k < propParts[i].polygons[j].numVertices; k++) {
+				glVertex3fv(propPoints[propParts[i].polygons[j].indices[k] - 1]);
+			}
+			glEnd();
+		}
+	}
+	glPopMatrix();
+
+	glColor3f(1.0, 1.0, 1.0);
+}
+void moveCessna(void) {
+
+}
+
+
+void myIdle(void) {
+	theta += 1;
+	moveCessna();
+
+	glutPostRedisplay();
+}
+
+void addPlaneObject(PlaneObject cessnaParts[], int* cessnaCount, PlaneObject* currentObj) {
+	if (*cessnaCount < CESSNA_OBJECT_COUNT) {
+		cessnaParts[*cessnaCount] = *currentObj;
+		(*cessnaCount)++;
+		currentObj->numPolygons = 0;
+	}
+}
+
+
+void addPolygon(PlaneObject* planeObj, int indices[], int numVertices) {
+	if (planeObj->numPolygons < 700) {
+		PolygonShape* polygon = &planeObj->polygons[planeObj->numPolygons];
+		memcpy(polygon->indices, indices, numVertices * sizeof(int));
+		polygon->numVertices = numVertices;
+		planeObj->numPolygons++;
+	}
+}
+
+void initializeCessna(void) {
+	FILE* file;
+	if (fopen_s(&file, "cessna.txt", "r") != 0) {
+		printf("Error opening file\n");
+		return;
+	}
+
+	char line[128];
+
+	for (int i = 0; i < CESSNA_POINT_COUNT; i++) {
+		fgets(line, sizeof(line), file);
+		if (line[0] == 'v') {
+			sscanf_s(line, "v %f %f %f", &cessnaPoints[i][0], &cessnaPoints[i][1], &cessnaPoints[i][2]);
+		}
+	}
+
+	for (int i = 0; i < CESSNA_POINT_COUNT; i++) {
+		fgets(line, sizeof(line), file);
+		if (line[0] == 'n') {
+			sscanf_s(line, "n %f %f %f", &cessnaNormals[i][0], &cessnaNormals[i][1], &cessnaNormals[i][2]);
+		}
+	}
+	//skip gap
+	fgets(line, sizeof(line), file);
+
+	int cessnaCount = 0;
+	PlaneObject currentObj;
+	currentObj.numPolygons = 0;
+
+	while (fgets(line, sizeof(line), file) != NULL) {
+		if (line[0] == 'g') {
+			addPlaneObject(cessnaParts, &cessnaCount, &currentObj);
+		}
+		else if (line[0] == 'f') {
+			int indices[50];
+			int numVertices = 0;
+			char* token = NULL;
+			char* nextToken = NULL;
+			token = strtok_s(line + 1, " \t\n", &nextToken);
+			while (token != NULL) {
+				indices[numVertices] = atoi(token);
+				numVertices++;
+				token = strtok_s(NULL, " \t\n", &nextToken); 
+			}
+			addPolygon(&currentObj, indices, numVertices);
+		}
+	}
+
+
+	addPlaneObject(cessnaParts, &cessnaCount, &currentObj);
+	fclose(file);
+}
+
+void initializePropellers(void) {
+	FILE* file;
+	if (fopen_s(&file, "propeller.txt", "r") != 0) {
+		printf("Error opening file\n");
+		return;
+	}
+
+	char line[128];
+
+	for (int i = 0; i < PROP_POINT_COUNT; i++) {
+		fgets(line, sizeof(line), file);
+		if (line[0] == 'v') {
+			sscanf_s(line, "v %f %f %f", &propPoints[i][0], &propPoints[i][1], &propPoints[i][2]);
+		}
+		propPoints[i][0] += 0.16;
+		propPoints[i][1] += 0.13;
+		propPoints[i][2] += -0.36;
+	}
+
+	for (int i = 0; i < PROP_POINT_COUNT; i++) {
+		fgets(line, sizeof(line), file);
+		if (line[0] == 'n') {
+			sscanf_s(line, "n %f %f %f", &propNormals[i][0], &propNormals[i][1], &propNormals[i][2]);
+		}
+	}
+	//skip gap
+	fgets(line, sizeof(line), file);
+
+	int propCount = 0;
+	PlaneObject currentObj;
+	currentObj.numPolygons = 0;
+
+	while (fgets(line, sizeof(line), file) != NULL) {
+		if (line[0] == 'g') {
+			addPlaneObject(propParts, &propCount, &currentObj);
+		}
+		else if (line[0] == 'f') {
+			int indices[50];
+			int numVertices = 0;
+			char* token = NULL;
+			char* nextToken = NULL;
+			token = strtok_s(line + 1, " \t\n", &nextToken);
+			while (token != NULL) {
+				indices[numVertices] = atoi(token);
+				numVertices++;
+				token = strtok_s(NULL, " \t\n", &nextToken);
+			}
+			addPolygon(&currentObj, indices, numVertices);
+		}
+	}
+
+
+	addPlaneObject(propParts, &propCount, &currentObj);
+	fclose(file);
+}
+
+void movePropeller(int x, int y, int z) {
+	for (int i = 0; i < PROP_POINT_COUNT; i++) {
+		propPoints[i][0] += (x * 0.01);
+		propPoints[i][1] += (y * 0.01);
+		propPoints[i][2] += (z * 0.01);
+	}
 }
 
 void drawOrigin(void) {
@@ -103,7 +402,7 @@ void drawOrigin(void) {
 	glColor3f(129.0 / 255.0, 167.0 / 255.0, 230.0 / 255.0);
 	glPushMatrix();
 
-	glScalef(5.0, 0.0, 5.0);
+	glScalef(10.0, 0.0, 10.0);
 
 	glBegin(GL_POLYGON);
 	glVertex3f(-0.5, 0, 0.5);
@@ -131,46 +430,13 @@ void drawOrigin(void) {
 	glColor3f(1.0, 1.0, 1.0);
 }
 
-void positionCamera(void) {
-	gluLookAt(1, 1, 1, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
-}
 
-
-
-
-/************************************************************************
-
-	Function:		initializeGL
-
-	Description:	Initializes the OpenGL rendering context for display
-
-*************************************************************************/
-void initializeGL(void)
-{
-	// enable depth testing
-	glEnable(GL_DEPTH_TEST);
-
-	// enable blending for fading opacity
-	glEnable(GL_BLEND);
-
-	// set background color to be black
-	glClearColor(0, 0, 0, 1.0);
-
-	// change into projection mode so that we can change the camera properties
-	glMatrixMode(GL_PROJECTION);
-
-	// load the identity matrix into the projection matrix
-	glLoadIdentity();
-
-	// set window mode to perspective
-	gluPerspective(45, (GLfloat)originalWidth / (GLfloat)originalHeight, 0.1, 20);
-
-	// change into model-view mode so that we can change the object positions
-	glMatrixMode(GL_MODELVIEW);
-}
 
 void myReshape(int newWidth, int newHeight) {
 	glViewport(0, 0, newWidth, newHeight);
+
+	currentWidth = newWidth;
+	currentHeight = newHeight;
 
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
@@ -181,6 +447,20 @@ void myReshape(int newWidth, int newHeight) {
 	glutPostRedisplay();
 }
 
+void myPassiveMouse(int x, int y) {
+	GLfloat halfScreen = (GLfloat)currentWidth / 2;
+
+	GLfloat cursorRatio = (GLfloat)(x - halfScreen) / halfScreen;
+
+
+	GLfloat tilt = cursorRatio;
+
+
+	turnAngle = fmaxf(-1.0, fminf(1.0, tilt));
+
+
+	glutPostRedisplay();
+}
 
 void myKeyboard(unsigned char key, int x, int y) {
 	if (key == 'q') {
@@ -251,6 +531,40 @@ void mySpecialKeyboard(int key, int x, int y) {
 	glutPostRedisplay();
 }
 
+
+/************************************************************************
+
+	Function:		initializeGL
+
+	Description:	Initializes the OpenGL rendering context for display
+
+*************************************************************************/
+void initializeGL(void)
+{
+	// enable depth testing
+	glEnable(GL_DEPTH_TEST);
+
+	glShadeModel(GL_SMOOTH);
+
+	// enable blending for fading opacity
+	glEnable(GL_BLEND);
+
+	// set background color to be black
+	glClearColor(0, 0, 0, 1.0);
+
+	// change into projection mode so that we can change the camera properties
+	glMatrixMode(GL_PROJECTION);
+
+	// load the identity matrix into the projection matrix
+	glLoadIdentity();
+
+	// set window mode to perspective
+	gluPerspective(45, (GLfloat)originalWidth / (GLfloat)originalHeight, 0.1, 20);
+
+	// change into model-view mode so that we can change the object positions
+	glMatrixMode(GL_MODELVIEW);
+}
+
 /************************************************************************
 
 	Function:		main
@@ -289,11 +603,19 @@ void main(int argc, char** argv)
 
 	glutSpecialFunc(mySpecialKeyboard);
 
+	glutPassiveMotionFunc(myPassiveMouse);
+
+	glutIdleFunc(myIdle);
+
 	// register the blend function to enable opacity fading
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	// initialize the rendering context
 	initializeGL();
+
+	initializeCessna();
+
+	initializePropellers();
 
 	// print the controls on the console for the user
 	printKeyboardControls();
@@ -313,19 +635,22 @@ void main(int argc, char** argv)
 void printKeyboardControls(void)
 {
 	printf("Scene Controls\n-------------------\n\n");
-	printf("r \t: toggle rings\n");
-	printf("s \t: toggle stars\n");
-	printf("c \t: toggle sun's corona\n");
-	printf("LClick \t: shoot left lasers\n");
-	printf("RClick \t: shoot right lasers\n\n");
+	printf("f \t: toggle fullscreen\n");
+	printf("g \t: toggle fog\n");
+	printf("m \t: toggle mountains\n");
+	printf("t \t: toggle mountain texture\n");
+	printf("s \t: toggle sea & sky\n");
+	printf("w \t: toggle wire frame\n");
+	printf("q \t: quit\n\n");
 
 	printf("Camera Controls\n------------------- \n\n");
+	printf("PAGE \tUP\t: \tfaster\n");
+	printf("PAGE \tDOWN\t: \tslower\n");
 	printf("Up \tArrow\t: \tmove up\n");
 	printf("Down \tArrow\t: \tmove down\n");
-	printf("Right \tArrow\t: \tmove right\n");
-	printf("Left \tArrow\t: \tmove left\n");
-	printf("PAGE \tUP\t: \tforward\n");
-	printf("PAGE \tDOWN\t: \tbackward\n");
+	printf("Mouse \tRight\t: \tmove right\n");
+	printf("Mouse \tLeft\t: \tmove left\n");
+
 
 
 	printf("\nNote: May need to use FN key to use Page Up and Page Down on Laptops.\n");

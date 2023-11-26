@@ -29,4 +29,12 @@
       <Filter>Source Files</Filter>
     </Image>
   </ItemGroup>
+  <ItemGroup>
+    <Text Include="cessna.txt">
+      <Filter>Source Files</Filter>
+    </Text>
+    <Text Include="propeller.txt">
+      <Filter>Source Files</Filter>
+    </Text>
+  </ItemGroup>
 </Project>
