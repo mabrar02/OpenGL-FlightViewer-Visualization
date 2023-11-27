@@ -57,14 +57,14 @@ int originalHeight = 600;
 int currentWidth = 900;
 int currentHeight = 600;
 
-int wireframeToggled = 0;
+int wireframeToggled = 1;
 int fullScreenToggled = 0;
 int seaSkyToggled = 0;
 int mountainToggled = 0;
 int fogToggled = 0; 
 
-GLfloat camPos[3] = { 0.0, 2.5, 10.0 };
-GLfloat forwardVector[3] = {0.0, 1.75, 7.0};
+GLfloat camPos[3] = { 0.0, 3, 10.0 };
+GLfloat forwardVector[3] = {0.0, 2.25, 7.0};
 GLfloat distOffset = 3.0;
 
 GLfloat turnAngle = 0;
@@ -78,7 +78,7 @@ GLfloat theta = 0.0;
 GLint propellerSpeed = 2;
 
 
-GLfloat lightPos[] = { 0, 50.0, 0, 1.0 };
+GLfloat lightPos[] = { 0, 25.0, 4, 1.0 };
 GLfloat zeroMaterial[] = { 0.0, 0.0, 0.0, 1.0 };
 
 GLfloat yellowDiffuse[] = {224.0 / 255.0, 185.0 / 255.0, 76.0 / 255.0, 1.0};
