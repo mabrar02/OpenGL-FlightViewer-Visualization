@@ -27,7 +27,8 @@ void positionCamera(void);
 void drawOrigin(void);
 void drawCessna(void);
 void drawPropellers(void);
-void drawSeaSky(void);
+void drawSea(void);
+void drawSky(void);
 
 
 typedef struct {
@@ -93,6 +94,9 @@ GLfloat whiteDiffuse[] = { 1.0, 1.0, 1.0, 1.0 };
 GLfloat whiteSpecular[] = { 1.0, 1.0, 1.0, 1.0 };
 GLfloat highEmission[] = { 1.0, 1.0, 1.0, 1.0 };
 
+GLfloat fogColor[] = { 1.0, 156.0 / 255.0, 219.0 / 255.0, 1.0 };
+GLfloat fogDensity = 0.0175;
+
 GLfloat cessnaShininess = 100.0;
 
 GLuint seaTexture;
@@ -127,14 +131,17 @@ void myDisplay(void)
 	else {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
-	
+	if (fogToggled) {
+		glEnable(GL_FOG);
+	}
 	if (seaSkyToggled) {
-		drawSeaSky();
+		drawSea();
+		glDisable(GL_FOG);
+		drawSky();
 	}
 	else {
 		drawOrigin();
 	}
-
 
 	drawCessna();
 
@@ -157,7 +164,7 @@ void moveCessna(void) {
 	camPos[2] = forwardVector[2] + moveVector[1] * distOffset;
 }
 
-void drawSeaSky(void) {
+void drawSea(void) {
 	glColor3f(1.0, 1.0, 1.0);
 
 	glEnable(GL_TEXTURE_2D);
@@ -165,7 +172,7 @@ void drawSeaSky(void) {
 	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
 
 	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, highEmission);
-
+	
 	GLUquadric* seaQuadricPtr = gluNewQuadric();
 	glShadeModel(GLU_SMOOTH);
 	gluQuadricNormals(seaQuadricPtr, GLU_SMOOTH);
@@ -175,11 +182,14 @@ void drawSeaSky(void) {
 
 	glTranslatef(0, 0.5, 0);
 	glRotatef(90, 1, 0, 0);
+
+
 	gluDisk(seaQuadricPtr, 0, 42, 50, 8);
 
-
 	glPopMatrix();
+}
 
+void drawSky(void) {
 	glBindTexture(GL_TEXTURE_2D, skyTexture);
 	GLUquadric* skyQuadricPtr = gluNewQuadric();
 	glShadeModel(GLU_SMOOTH);
@@ -586,6 +596,7 @@ void myKeyboard(unsigned char key, int x, int y) {
 		}
 		else {
 			fogToggled = 0;
+			glDisable(GL_FOG);
 		}
 	}
 	else if (key == 'm') {
@@ -618,6 +629,12 @@ void mySpecialKeyboard(int key, int x, int y) {
 			break;
 	}
 	glutPostRedisplay();
+}
+
+void intializeFog(void) {
+	glFogfv(GL_FOG_COLOR, fogColor);
+	glFogf(GL_FOG_MODE, GL_EXP);
+	glFogf(GL_FOG_DENSITY, fogDensity);
 }
 
 void generateTextures(void) {
@@ -768,6 +785,8 @@ void main(int argc, char** argv)
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	generateTextures();
+
+	intializeFog();
 	// initialize the rendering context
 	initializeGL();
 
