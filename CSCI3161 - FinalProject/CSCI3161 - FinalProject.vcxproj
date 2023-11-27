@@ -136,6 +136,8 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="mount03.jpg" />
+    <Image Include="sea02.jpg" />
+    <Image Include="sky08.jpg" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="cessna.txt" />

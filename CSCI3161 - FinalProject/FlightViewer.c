@@ -9,6 +9,9 @@
 #include <math.h>
 #include <string.h>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #define textureWidth  64
 #define textureHeight 64
 #define CESSNA_POINT_COUNT 6763
@@ -75,7 +78,7 @@ GLfloat theta = 0.0;
 GLint propellerSpeed = 2;
 
 
-GLfloat lightPos[] = { 0, 10.0, 10.0, 1.0 };
+GLfloat lightPos[] = { 0, 50.0, 0, 1.0 };
 GLfloat zeroMaterial[] = { 0.0, 0.0, 0.0, 1.0 };
 
 GLfloat yellowDiffuse[] = {224.0 / 255.0, 185.0 / 255.0, 76.0 / 255.0, 1.0};
@@ -88,8 +91,14 @@ GLfloat greyDiffuse[] = { 0.7, 0.7, 0.7 , 1.0 };
 GLfloat redDiffuse[] = { 1.0, 0.0, 0.0, 1.0 };
 GLfloat whiteDiffuse[] = { 1.0, 1.0, 1.0, 1.0 };
 GLfloat whiteSpecular[] = { 1.0, 1.0, 1.0, 1.0 };
+GLfloat highEmission[] = { 1.0, 1.0, 1.0, 1.0 };
 
-GLfloat cessnaShininess = 30.0;
+GLfloat cessnaShininess = 100.0;
+
+GLuint seaTexture;
+GLuint skyTexture;
+GLuint mountainTexture;
+
 
 /************************************************************************
 
@@ -149,35 +158,45 @@ void moveCessna(void) {
 }
 
 void drawSeaSky(void) {
+	glColor3f(1.0, 1.0, 1.0);
 
+	glEnable(GL_TEXTURE_2D);
+	glBindTexture(GL_TEXTURE_2D, seaTexture);
 	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, blueDiffuse);
+
+	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, highEmission);
+
 	GLUquadric* seaQuadricPtr = gluNewQuadric();
 	glShadeModel(GLU_SMOOTH);
 	gluQuadricNormals(seaQuadricPtr, GLU_SMOOTH);
 	gluQuadricTexture(seaQuadricPtr, GL_TRUE);
 
 	glPushMatrix();
+
 	glTranslatef(0, 0.5, 0);
 	glRotatef(90, 1, 0, 0);
-	//glColor3f(0, 242.0 / 255.0, 1.0);
 	gluDisk(seaQuadricPtr, 0, 42, 50, 8);
+
+
 	glPopMatrix();
 
-
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, redDiffuse);
+	glBindTexture(GL_TEXTURE_2D, skyTexture);
 	GLUquadric* skyQuadricPtr = gluNewQuadric();
 	glShadeModel(GLU_SMOOTH);
 	gluQuadricNormals(skyQuadricPtr, GLU_SMOOTH);
 	gluQuadricTexture(skyQuadricPtr, GL_TRUE);
 
 	glPushMatrix();
-	glRotatef(-90, 1, 0, 0);
-	//glColor3f(252.0/255.0, 109.0/255.0, 61.0/255.0);
-	gluCylinder(skyQuadricPtr, 41, 41, 20, 20, 20);
+
+	glTranslatef(0, 50, 0);
+	glRotatef(90, 1, 0, 0);
+	gluCylinder(skyQuadricPtr, 41, 41, 50, 20, 20);
+
 	glPopMatrix();
 
+	glDisable(GL_TEXTURE_2D);
 	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, zeroMaterial);
 }
 
 void drawCessna() {
@@ -509,7 +528,7 @@ void myReshape(int newWidth, int newHeight) {
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 
-	gluPerspective(45, (GLfloat) newWidth / (GLfloat) newHeight, 0.1, 50);
+	gluPerspective(45, (GLfloat) newWidth / (GLfloat) newHeight, 0.1, 100);
 
 	glMatrixMode(GL_MODELVIEW);
 	glutPostRedisplay();
@@ -601,6 +620,59 @@ void mySpecialKeyboard(int key, int x, int y) {
 	glutPostRedisplay();
 }
 
+void generateTextures(void) {
+	GLubyte* seaData;
+	GLubyte* skyData;
+	GLubyte* mountainData;
+
+	glGenTextures(1, &seaTexture);
+	glGenTextures(1, &skyTexture);
+	glGenTextures(1, &mountainTexture);
+
+	int imageWidth, imageHeight, numChannels;
+	seaData = stbi_load("sea02.jpg", &imageWidth, &imageHeight, &numChannels, 0);
+
+	glBindTexture(GL_TEXTURE_2D, seaTexture);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	
+	gluBuild2DMipmaps(GL_TEXTURE_2D, 3, imageWidth, imageHeight, GL_RGB, GL_UNSIGNED_BYTE, seaData);
+
+	stbi_image_free(seaData);
+
+	skyData = stbi_load("sky08.jpg", &imageWidth, &imageHeight, &numChannels, 0);
+
+	glBindTexture(GL_TEXTURE_2D, skyTexture);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+	gluBuild2DMipmaps(GL_TEXTURE_2D, 3, imageWidth, imageHeight, GL_RGB, GL_UNSIGNED_BYTE, skyData);
+
+	stbi_image_free(skyData);
+
+
+	mountainData = stbi_load("mount03.jpg", &imageWidth, &imageHeight, &numChannels, 0);
+
+	glBindTexture(GL_TEXTURE_2D, mountainTexture);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+	gluBuild2DMipmaps(GL_TEXTURE_2D, 3, imageWidth, imageHeight, GL_RGB, GL_UNSIGNED_BYTE, mountainData);
+
+	stbi_image_free(mountainData);
+
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+}
 
 /************************************************************************
 
@@ -695,6 +767,7 @@ void main(int argc, char** argv)
 	// register the blend function to enable opacity fading
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+	generateTextures();
 	// initialize the rendering context
 	initializeGL();
 

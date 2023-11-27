@@ -15,17 +15,18 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="stb_image.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="FlightViewer.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Image Include="mount03.jpg">
+      <Filter>Source Files</Filter>
+    </Image>
+    <Image Include="sea02.jpg">
+      <Filter>Source Files</Filter>
+    </Image>
+    <Image Include="sky08.jpg">
       <Filter>Source Files</Filter>
     </Image>
   </ItemGroup>
@@ -36,5 +37,10 @@
     <Text Include="propeller.txt">
       <Filter>Source Files</Filter>
     </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="stb_image.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
