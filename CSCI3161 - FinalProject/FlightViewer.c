@@ -66,9 +66,10 @@ GLfloat moveSpeed = 0.01;
 GLfloat speedIncrement = 0.001;
 
 GLfloat theta = 0.0;
+GLint propellerSpeed = 2;
 
 
-GLfloat lightPos[] = { 10.0, 10.0, 10.0, 1.0 };
+GLfloat lightPos[] = { 0, 10.0, 10.0, 1.0 };
 GLfloat zeroMaterial[] = { 0.0, 0.0, 0.0, 1.0 };
 
 GLfloat yellowDiffuse[] = {224.0 / 255.0, 185.0 / 255.0, 76.0 / 255.0, 1.0};
@@ -132,29 +133,34 @@ void positionCamera(void) {
 
 void drawSeaSky(void) {
 
-	glMaterialfv(GL_FRONT, GL_DIFFUSE, blueDiffuse);
+	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, blueDiffuse);
 	GLUquadric* seaQuadricPtr = gluNewQuadric();
+	glShadeModel(GLU_SMOOTH);
 	gluQuadricNormals(seaQuadricPtr, GLU_SMOOTH);
 	gluQuadricTexture(seaQuadricPtr, GL_TRUE);
 
 	glPushMatrix();
 	glTranslatef(0, 0.5, 0);
 	glRotatef(90, 1, 0, 0);
-	glColor3f(0, 242.0 / 255.0, 1.0);
+	//glColor3f(0, 242.0 / 255.0, 1.0);
 	gluDisk(seaQuadricPtr, 0, 12, 50, 8);
 	glPopMatrix();
 
 
-	glMaterialfv(GL_FRONT, GL_DIFFUSE, redDiffuse);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, redDiffuse);
 	GLUquadric* skyQuadricPtr = gluNewQuadric();
+	glShadeModel(GLU_SMOOTH);
 	gluQuadricNormals(skyQuadricPtr, GLU_SMOOTH);
 	gluQuadricTexture(skyQuadricPtr, GL_TRUE);
 
 	glPushMatrix();
 	glRotatef(-90, 1, 0, 0);
-	glColor3f(252.0/255.0, 109.0/255.0, 61.0/255.0);
+	//glColor3f(252.0/255.0, 109.0/255.0, 61.0/255.0);
 	gluCylinder(skyQuadricPtr, 10, 10, 20, 20, 20);
 	glPopMatrix();
+
+	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
 }
 
 void drawCessna() {
@@ -204,7 +210,7 @@ void drawPropellers() {
 
 	glPushMatrix();
 	glTranslatef(-0.25, -0.15, 0.35);
-	glRotatef(-theta, 1, 0, 0);
+	glRotatef(-theta * propellerSpeed, 1, 0, 0);
 	glScalef(0.75, 0.75, 0.75);
 
 	for (int i = 1; i < 3; i++) {
@@ -233,7 +239,7 @@ void drawPropellers() {
 
 	glPushMatrix();
 	glTranslatef(-0.25, -0.15, -0.35);
-	glRotatef(theta, 1, 0, 0);
+	glRotatef(theta * propellerSpeed, 1, 0, 0);
 	glScalef(0.75, 0.75, 0.75);
 
 	for (int i = 1; i < 3; i++) {
@@ -251,6 +257,7 @@ void drawPropellers() {
 			glBegin(GL_POLYGON);
 
 			for (int k = 0; k < propParts[i].polygons[j].numVertices; k++) {
+				glNormal3fv(propNormals[propParts[i].polygons[j].indices[k] - 1]);
 				glVertex3fv(propPoints[propParts[i].polygons[j].indices[k] - 1]);
 			}
 			glEnd();
@@ -432,7 +439,7 @@ void drawOrigin(void) {
 
 	glLineWidth(1.0f);
 	glColor3f(1.0, 1.0, 1.0);
-	glMaterialfv(GL_FRONT, GL_DIFFUSE, whiteDiffuse);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, whiteDiffuse);
 	
 	// origin ball
 	GLUquadric* quad = gluNewQuadric();
@@ -442,11 +449,12 @@ void drawOrigin(void) {
 	glPopMatrix();
 
 
-	glMaterialfv(GL_FRONT, GL_DIFFUSE, lightblueDiffuse);
+
 	glPushMatrix();
 
 	glScalef(10.0, 0.0, 10.0);
-
+	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, lightblueDiffuse);
+	glNormal3f(0, 1, 0);
 	glBegin(GL_POLYGON);
 	glVertex3f(-0.5, 0, 0.5);
 	glVertex3f(-0.5, 0, -0.5);
@@ -598,6 +606,7 @@ void initializeGL(void)
 	glEnable(GL_LIGHTING);
 	glEnable(GL_LIGHT0);
 	glEnable(GL_NORMALIZE);
+
 	// enable depth testing
 	glEnable(GL_DEPTH_TEST);
 
