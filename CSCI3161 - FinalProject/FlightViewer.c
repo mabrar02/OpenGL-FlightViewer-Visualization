@@ -161,7 +161,7 @@ void drawSeaSky(void) {
 	glTranslatef(0, 0.5, 0);
 	glRotatef(90, 1, 0, 0);
 	//glColor3f(0, 242.0 / 255.0, 1.0);
-	gluDisk(seaQuadricPtr, 0, 12, 50, 8);
+	gluDisk(seaQuadricPtr, 0, 42, 50, 8);
 	glPopMatrix();
 
 
@@ -174,7 +174,7 @@ void drawSeaSky(void) {
 	glPushMatrix();
 	glRotatef(-90, 1, 0, 0);
 	//glColor3f(252.0/255.0, 109.0/255.0, 61.0/255.0);
-	gluCylinder(skyQuadricPtr, 10, 10, 20, 20, 20);
+	gluCylinder(skyQuadricPtr, 41, 41, 20, 20, 20);
 	glPopMatrix();
 
 	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
@@ -469,7 +469,7 @@ void drawOrigin(void) {
 
 	glPushMatrix();
 
-	glScalef(10.0, 0.0, 10.0);
+	glScalef(30.0, 0.0, 30.0);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, lightblueDiffuse);
 	glNormal3f(0, 1, 0);
 	glBegin(GL_POLYGON);
@@ -509,7 +509,7 @@ void myReshape(int newWidth, int newHeight) {
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 
-	gluPerspective(45, (GLfloat) newWidth / (GLfloat) newHeight, 0.1, 20);
+	gluPerspective(45, (GLfloat) newWidth / (GLfloat) newHeight, 0.1, 50);
 
 	glMatrixMode(GL_MODELVIEW);
 	glutPostRedisplay();
