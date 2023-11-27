@@ -16,6 +16,7 @@
 #define PROP_POINT_COUNT 6763
 #define PROP_FACE_COUNT 132
 #define CESSNA_OBJECT_COUNT 34
+#define M_PI 3.141592
 
 
 void printKeyboardControls(void);
@@ -60,10 +61,15 @@ int mountainToggled = 0;
 int fogToggled = 0; 
 
 GLfloat camPos[3] = { 0.0, 2.5, 10.0 };
+GLfloat forwardVector[3] = {0.0, 1.75, 7.0};
+GLfloat distOffset = 3.0;
 
 GLfloat turnAngle = 0;
-GLfloat moveSpeed = 0.01;
+GLfloat moveSpeed = 0.05;
 GLfloat speedIncrement = 0.001;
+GLfloat heightIncrement = 0.01;
+GLfloat turnRate = 0.1;
+GLfloat forwardAngle = M_PI / 2;
 
 GLfloat theta = 0.0;
 GLint propellerSpeed = 2;
@@ -128,7 +134,18 @@ void myDisplay(void)
 }
 
 void positionCamera(void) {
-	gluLookAt(camPos[0], camPos[1], camPos[2], 0, 0, 0, 0.0, 1.0, 0.0);
+	gluLookAt(camPos[0], camPos[1], camPos[2], forwardVector[0], forwardVector[1], forwardVector[2], 0.0, 1.0, 0.0);
+}
+
+void moveCessna(void) {
+	forwardAngle += turnRate * turnAngle;
+	GLfloat moveVector[2] = { cos(forwardAngle), sin(forwardAngle) };
+	forwardVector[0] += moveSpeed * -moveVector[0];
+	forwardVector[2] += moveSpeed * -moveVector[1];
+
+	camPos[0] = forwardVector[0] + moveVector[0] * distOffset;
+	camPos[1] = forwardVector[1];
+	camPos[2] = forwardVector[2] + moveVector[1] * distOffset;
 }
 
 void drawSeaSky(void) {
@@ -166,8 +183,9 @@ void drawSeaSky(void) {
 void drawCessna() {
 	glPushMatrix();
 
-	glTranslatef(0, 1.0, 7.0);
-	glRotatef(-90, 0, 1, 0);
+	glTranslatef(forwardVector[0], forwardVector[1] - 0.75, forwardVector[2]);
+	GLfloat angleConversion = forwardAngle * 180 / M_PI;
+	glRotatef(-angleConversion, 0, 1, 0);
 	glRotatef(-45 * turnAngle, 1, 0, 0);
 
 	for (int i = 1; i < CESSNA_OBJECT_COUNT; i++) {
@@ -267,9 +285,7 @@ void drawPropellers() {
 
 	glColor3f(1.0, 1.0, 1.0);
 }
-void moveCessna(void) {
 
-}
 
 
 void myIdle(void) {
@@ -419,6 +435,7 @@ void drawOrigin(void) {
 	glMaterialfv(GL_FRONT, GL_AMBIENT, zeroMaterial);
 	glMaterialfv(GL_FRONT, GL_SPECULAR, zeroMaterial);
 	glMaterialf(GL_FRONT, GL_SHININESS, 0.0f);
+	glNormal3f(0, 1, 0);
 
 	//origin lines
 	glBegin(GL_LINES);
@@ -567,8 +584,10 @@ void myKeyboard(unsigned char key, int x, int y) {
 void mySpecialKeyboard(int key, int x, int y) {
 	switch (key) {
 		case GLUT_KEY_UP:
+			forwardVector[1] += heightIncrement;
 			break;
 		case GLUT_KEY_DOWN:
+			forwardVector[1] -= heightIncrement;
 			break;
 		case GLUT_KEY_PAGE_UP:
 			moveSpeed += speedIncrement;
