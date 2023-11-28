@@ -1,5 +1,17 @@
+/************************************************************************************
+
+	File: 			FlightViewer.c
+
+	Description:	A complete OpenGL program simulating a planes flight,
+					including a textured sea, sky, and mountains, with
+					togglable scene elements. CSCI 3161 - Assignment 3
 
 
+
+	Author:			Mahdeen Abrar (B00860738)
+	Date:			Nov. 28th, 2023
+
+*************************************************************************************/
 
 /* include the library header files */
 #include <stdlib.h>
@@ -9,19 +21,20 @@
 #include <math.h>
 #include <string.h>
 
+/* making use of stb_image.h for reading jpg images to be used as textures */
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-#define textureWidth  64
-#define textureHeight 64
+/* defining constants, point and face counts for cessna and propeller given by prof */
 #define CESSNA_POINT_COUNT 6763
 #define CESSNA_FACE_COUNT 3639
 #define PROP_POINT_COUNT 6763
 #define PROP_FACE_COUNT 132
 #define CESSNA_OBJECT_COUNT 34
 #define M_PI 3.141592
+#define MESH_RES 32
 
-
+/* function signature definitions */
 void printKeyboardControls(void);
 void positionCamera(void);
 void drawOrigin(void);
@@ -29,28 +42,32 @@ void drawCessna(void);
 void drawPropellers(void);
 void drawSea(void);
 void drawSky(void);
+void drawMountains();
 
-
+/* struct to define polygon shapes for easy storing of individual shapes*/
 typedef struct {
 	int indices[50];
 	int numVertices;
 } PolygonShape;
 
+/* struct used to define an object comprising of polygons, useful for constructing plane and propeller from their parts*/
 typedef struct {
 	PolygonShape polygons[700];
 	int numPolygons;
 
-} PlaneObject;
+} Object;
 
-PlaneObject cessnaParts[CESSNA_OBJECT_COUNT];
+// cesnna arrays to help build the plane
+Object cessnaParts[CESSNA_OBJECT_COUNT];
 GLfloat cessnaPoints[CESSNA_POINT_COUNT][3];
 GLfloat cessnaNormals[CESSNA_POINT_COUNT][3];
 
-PlaneObject propParts[3];
+// propeller arrays to help build the propellers
+Object propParts[3];
 GLfloat propPoints[PROP_POINT_COUNT][3];
 GLfloat propNormals[PROP_POINT_COUNT][3];
 
-
+// window variables
 int originalWindowPosX = 100;
 int originalWindowPosY = 150;
 int originalWidth = 900;
@@ -58,30 +75,36 @@ int originalHeight = 600;
 int currentWidth = 900;
 int currentHeight = 600;
 
+// toggle variables
 int wireframeToggled = 1;
 int fullScreenToggled = 0;
 int seaSkyToggled = 0;
 int mountainToggled = 0;
+int mountainTexturedToggled = 0;
 int fogToggled = 0; 
 
+// position and camera variables
 GLfloat camPos[3] = { 0.0, 3, 10.0 };
 GLfloat forwardVector[3] = {0.0, 2.25, 7.0};
 GLfloat distOffset = 3.0;
+GLfloat forwardAngle = M_PI / 2;
 
+// cesnna movement variables
 GLfloat turnAngle = 0;
 GLfloat moveSpeed = 0.05;
 GLfloat speedIncrement = 0.001;
 GLfloat heightIncrement = 0.01;
 GLfloat turnRate = 0.1;
-GLfloat forwardAngle = M_PI / 2;
 
+// propeller movement variables
 GLfloat theta = 0.0;
 GLint propellerSpeed = 2;
 
+// light variables
+GLfloat lightPos[] = { 0, 10.0, 0, 0.0 };
+GLfloat cessnaShininess = 100.0;
 
-GLfloat lightPos[] = { 0, 25.0, 4, 1.0 };
-GLfloat zeroMaterial[] = { 0.0, 0.0, 0.0, 1.0 };
-
+// material variables
 GLfloat yellowDiffuse[] = {224.0 / 255.0, 185.0 / 255.0, 76.0 / 255.0, 1.0};
 GLfloat blackDiffuse[] = { 0.0, 0.0, 0.0, 1.0};
 GLfloat purpleDiffuse[] = { 154.0 / 255.0, 94.0 / 255.0, 191.0 / 255.0, 1.0};
@@ -93,16 +116,27 @@ GLfloat redDiffuse[] = { 1.0, 0.0, 0.0, 1.0 };
 GLfloat whiteDiffuse[] = { 1.0, 1.0, 1.0, 1.0 };
 GLfloat whiteSpecular[] = { 1.0, 1.0, 1.0, 1.0 };
 GLfloat highEmission[] = { 1.0, 1.0, 1.0, 1.0 };
+GLfloat zeroMaterial[] = { 0.0, 0.0, 0.0, 1.0 };
 
+// fog variables
 GLfloat fogColor[] = { 1.0, 156.0 / 255.0, 219.0 / 255.0, 1.0 };
 GLfloat fogDensity = 0.0175;
 
-GLfloat cessnaShininess = 100.0;
 
+// texture variables 
 GLuint seaTexture;
 GLuint skyTexture;
 GLuint mountainTexture;
 
+// mountain arrays to help build mountains
+GLint mountainVertexCount = (MESH_RES + 1) * (MESH_RES + 1);
+
+GLfloat mountainVertices[(MESH_RES + 1)][(MESH_RES + 1)][3];
+GLfloat mountainPolygonFaces[MESH_RES][MESH_RES][4][3];
+GLfloat mountainNormals[(MESH_RES + 1)][(MESH_RES + 1)][3];
+
+GLfloat mountainHeight = 10.0f;
+GLfloat initialRandAmount = 1.0f;
 
 /************************************************************************
 
@@ -121,19 +155,26 @@ void myDisplay(void)
 	// load the identity matrix into the model view matrix
 	glLoadIdentity();
 
+	// position the camera
 	positionCamera();
 
+	// set the directional light's position
 	glLightfv(GL_LIGHT0, GL_POSITION, lightPos);
 
+	// if wire frame toggled, draw polygons as lines rather than filling them
 	if (wireframeToggled) {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	}
 	else {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 	}
+	
+	// if fog toggled, draw it only on the sea
 	if (fogToggled) {
 		glEnable(GL_FOG);
 	}
+	
+	// if sea and sky toggled, draw them, otherwise draw origin and base grid
 	if (seaSkyToggled) {
 		drawSea();
 		glDisable(GL_FOG);
@@ -143,81 +184,192 @@ void myDisplay(void)
 		drawOrigin();
 	}
 
+	// if mountains toggled, draw them
+	if (mountainToggled) {
+		drawMountains();
+	}
+
+	// draw cessna (includes propellers)
 	drawCessna();
 
 	// swap the drawing buffers
 	glutSwapBuffers();
 }
 
+
+/************************************************************************
+
+	Function:		positionCamera
+
+	Description:	function used to position the camera to follow the
+					cessna
+
+*************************************************************************/
 void positionCamera(void) {
+	
+	// use separate vector for cameras position and direction of travel to maintain an offset from the cam and plane
 	gluLookAt(camPos[0], camPos[1], camPos[2], forwardVector[0], forwardVector[1], forwardVector[2], 0.0, 1.0, 0.0);
 }
 
+
+/************************************************************************
+
+	Function:		moveCessna
+
+	Description:	function used to move the cessna forward towards the
+					direction of travel, which is changed by mouse movement
+
+*************************************************************************/
 void moveCessna(void) {
+	
+	// turn angle ranges from -1 to 1, so we will change our direction of movement based on that value scaled down
 	forwardAngle += turnRate * turnAngle;
+	
+	// grab cos and sin components of direction to increment our x and z positions
 	GLfloat moveVector[2] = { cos(forwardAngle), sin(forwardAngle) };
 	forwardVector[0] += moveSpeed * -moveVector[0];
 	forwardVector[2] += moveSpeed * -moveVector[1];
 
+	// main an offset from the camera, add the opposite of the direction vector to the camera * the offset to scale it accordingly, y should remain the same
 	camPos[0] = forwardVector[0] + moveVector[0] * distOffset;
 	camPos[1] = forwardVector[1];
 	camPos[2] = forwardVector[2] + moveVector[1] * distOffset;
 }
 
+
+/************************************************************************
+
+	Function:		drawSea
+
+	Description:	function used in myDisplay() to draw the sea with 
+					its corresponding texture
+
+*************************************************************************/
 void drawSea(void) {
+	// set color to white as texture is multiplied by current colour
 	glColor3f(1.0, 1.0, 1.0);
 
+	// enable texturing 
 	glEnable(GL_TEXTURE_2D);
+
+	// retrieve the corresponding sea texture and bind it so it's currently active
 	glBindTexture(GL_TEXTURE_2D, seaTexture);
+
+	// since we will be enclosed within the sea and sky, need to ensure both sides are shaded
 	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
 
+	// set our emission value to high so the sea and sky shine through despite lighting effects
 	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, highEmission);
 	
+	// create a new quadric to be used for our sea
 	GLUquadric* seaQuadricPtr = gluNewQuadric();
+
+	// ensure shading is set to smooth
 	glShadeModel(GLU_SMOOTH);
+
+	// set our quadric to smooth
 	gluQuadricNormals(seaQuadricPtr, GLU_SMOOTH);
+
+	// allow our quadric to automatically generate texture coordinates
 	gluQuadricTexture(seaQuadricPtr, GL_TRUE);
 
+	// scope transformations for the disk
 	glPushMatrix();
 
+	// move disk slightly up to ensure no gap between sky and sea
 	glTranslatef(0, 0.5, 0);
+
+	// orient disc to be flat 
 	glRotatef(90, 1, 0, 0);
 
-
+	// create disk with altered quadric
 	gluDisk(seaQuadricPtr, 0, 42, 50, 8);
 
+	// return to original matrix
 	glPopMatrix();
 }
 
+
+/************************************************************************
+
+	Function:		drawSky
+
+	Description:	function used in myDisplay() to draw the sky with
+					its corresponding texture
+
+*************************************************************************/
 void drawSky(void) {
+
+	// retrieve the corresponding sky texture and bind it so it's currently active
 	glBindTexture(GL_TEXTURE_2D, skyTexture);
+
+	// create a new quadric to be used for our sky
 	GLUquadric* skyQuadricPtr = gluNewQuadric();
+
+	// ensure shading is set to smooth
 	glShadeModel(GLU_SMOOTH);
+
+	// set our quadric to smooth
 	gluQuadricNormals(skyQuadricPtr, GLU_SMOOTH);
+
+	// allow our quadric to automatically generate texture coordinates
 	gluQuadricTexture(skyQuadricPtr, GL_TRUE);
 
+	// scope transformations for the cylinder
 	glPushMatrix();
-
+	
+	// rotating our cylinder pushes it down, so we have to translate it up
 	glTranslatef(0, 50, 0);
+
+	// rotate our cylinder so it's upright
 	glRotatef(90, 1, 0, 0);
+
+	// create cylinder with altered quadric
 	gluCylinder(skyQuadricPtr, 41, 41, 50, 20, 20);
 
+	// return to original matrix
 	glPopMatrix();
 
+	// disable texturing as we don't want the other objects to be textured
 	glDisable(GL_TEXTURE_2D);
+
+	// disable two side shading as we won't be inside any other objects
 	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
+
+	// reset our emission value so no other objects are self emitting
 	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, zeroMaterial);
 }
 
+
+/************************************************************************
+
+	Function:		drawCessna
+
+	Description:	function used in myDisplay() to draw the cessna
+
+*************************************************************************/
 void drawCessna() {
+	
+	// scope transformations for cessna
 	glPushMatrix();
 
+	// move our cessna to be infront of our camera always
 	glTranslatef(forwardVector[0], forwardVector[1] - 0.75, forwardVector[2]);
+	
+	// convert our direction of travel into degrees
 	GLfloat angleConversion = forwardAngle * 180 / M_PI;
-	glRotatef(-angleConversion, 0, 1, 0);
-	glRotatef(-45 * turnAngle, 1, 0, 0);
 
+	// rotate cessna by the our turn angle to orient towards direction of travel
+	glRotatef(-angleConversion, 0, 1, 0);
+
+	// rotate cessna on x axis to tilt towards while turning
+	glRotatef(-45 * turnAngle, 1, 0, 0);
+	
+
+	// one indexed, iterate through object loop to draw each object with all the polygons associated, and colour accordingly
 	for (int i = 1; i < CESSNA_OBJECT_COUNT; i++) {
+		
+		// color the object's polygons a specific color, according to the document specifications
 		if (i <= 4 || (i >= 9 && i <= 14) || i >= 27) {
 			glMaterialfv(GL_FRONT, GL_DIFFUSE, yellowDiffuse);
 		}
@@ -231,13 +383,18 @@ void drawCessna() {
 			glMaterialfv(GL_FRONT, GL_DIFFUSE, blackDiffuse);
 		}
 
+		// set the rest of the material properties, give the cessna some shine
 		glMaterialfv(GL_FRONT, GL_AMBIENT, zeroMaterial);
 		glMaterialfv(GL_FRONT, GL_SPECULAR, whiteSpecular);
 		glMaterialf(GL_FRONT, GL_SHININESS, cessnaShininess);
 
+		// iterate through the list of polygons, and create each one
 		for (int j = 0; j < cessnaParts[i].numPolygons; j++) {
+
+			// create polygon shape
 			glBegin(GL_POLYGON);
 
+			// for each polygon, iterate through the list of normals and vertices and set them accordingly
 			for (int k = 0; k < cessnaParts[i].polygons[j].numVertices; k++) {
 				glNormal3fv(cessnaNormals[cessnaParts[i].polygons[j].indices[k] - 1]);
 				glVertex3fv(cessnaPoints[cessnaParts[i].polygons[j].indices[k]-1]);
@@ -245,22 +402,40 @@ void drawCessna() {
 			glEnd();
 		}
 	}
+
+	// after our cessna has been drawn, draw the propellers before popping to original matrix, this keeps propellers moving with cessna
 	drawPropellers();
 
+	// return to original matrix
 	glPopMatrix();
-
-	glColor3f(1.0, 1.0, 1.0);
 }
 
+
+/************************************************************************
+
+	Function:		drawPropellers
+
+	Description:	function used in drawCessna() to draw the propellers
+					attached to the cessna
+
+*************************************************************************/
 void drawPropellers() {
 
-
+	// scope transformations for the propellers
 	glPushMatrix();
+	
+	// set this propeller to the left side of the cessna
 	glTranslatef(-0.25, -0.15, 0.35);
+
+	// rotate the propeller by theta which is changing, negative to spin opposite of the other propeller
 	glRotatef(-theta * propellerSpeed, 1, 0, 0);
+	
+	// scale propeller down to an appropriate size
 	glScalef(0.75, 0.75, 0.75);
 
+	// iterate through the propellers objects and draw the polygons in the same colour
 	for (int i = 1; i < 3; i++) {
+		// depending on which object it is in the propeller, we colour accordingly
 		if (i == 1) {
 			glMaterialfv(GL_FRONT, GL_DIFFUSE, greyDiffuse);
 		}
@@ -268,10 +443,12 @@ void drawPropellers() {
 			glMaterialfv(GL_FRONT, GL_DIFFUSE, redDiffuse);
 		}
 
+		// set additional material properties, including shininess
 		glMaterialfv(GL_FRONT, GL_AMBIENT, zeroMaterial);
 		glMaterialfv(GL_FRONT, GL_SPECULAR, whiteSpecular);
 		glMaterialf(GL_FRONT, GL_SHININESS, cessnaShininess);
 
+		// for each propeller object, iterate through each polygon to create it as part of the same object
 		for (int j = 0; j < propParts[i].numPolygons; j++) {
 			glBegin(GL_POLYGON);
 
@@ -316,6 +493,30 @@ void drawPropellers() {
 }
 
 
+//void calculateNormal(GLfloat v1[], GLfloat v2[]) {
+//
+//}
+
+/************************************************************************
+
+	Function:		drawMountains
+
+	Description:	function used in myDisplay() to draw the cessna
+
+*************************************************************************/
+void drawMountains(void) {
+	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, greenDiffuse);
+	for (int i = 0; i < MESH_RES; i++) {
+		for (int j = 0; j < MESH_RES; j++) {
+			glBegin(GL_POLYGON);
+			glVertex3fv(mountainVertices[i][j]);
+			glVertex3fv(mountainVertices[i + 1][j]);
+			glVertex3fv(mountainVertices[i + 1][j + 1]);
+			glVertex3fv(mountainVertices[i][j + 1]);
+			glEnd();
+		}
+	}
+}
 
 void myIdle(void) {
 	theta += 1;
@@ -324,7 +525,12 @@ void myIdle(void) {
 	glutPostRedisplay();
 }
 
-void addPlaneObject(PlaneObject cessnaParts[], int* cessnaCount, PlaneObject* currentObj) {
+GLfloat getRandomNumber(GLfloat n) {
+	GLfloat randNum = ((float)rand() / RAND_MAX) * 2.0f * n - n;
+	return randNum;
+}
+
+void addPlaneObject(Object cessnaParts[], int* cessnaCount, Object* currentObj) {
 	if (*cessnaCount < CESSNA_OBJECT_COUNT) {
 		cessnaParts[*cessnaCount] = *currentObj;
 		(*cessnaCount)++;
@@ -332,8 +538,7 @@ void addPlaneObject(PlaneObject cessnaParts[], int* cessnaCount, PlaneObject* cu
 	}
 }
 
-
-void addPolygon(PlaneObject* planeObj, int indices[], int numVertices) {
+void addPolygon(Object* planeObj, int indices[], int numVertices) {
 	if (planeObj->numPolygons < 700) {
 		PolygonShape* polygon = &planeObj->polygons[planeObj->numPolygons];
 		memcpy(polygon->indices, indices, numVertices * sizeof(int));
@@ -368,7 +573,7 @@ void initializeCessna(void) {
 	fgets(line, sizeof(line), file);
 
 	int cessnaCount = 0;
-	PlaneObject currentObj;
+	Object currentObj;
 	currentObj.numPolygons = 0;
 
 	while (fgets(line, sizeof(line), file) != NULL) {
@@ -424,7 +629,7 @@ void initializePropellers(void) {
 	fgets(line, sizeof(line), file);
 
 	int propCount = 0;
-	PlaneObject currentObj;
+	Object currentObj;
 	currentObj.numPolygons = 0;
 
 	while (fgets(line, sizeof(line), file) != NULL) {
@@ -449,6 +654,39 @@ void initializePropellers(void) {
 
 	addPlaneObject(propParts, &propCount, &currentObj);
 	fclose(file);
+}
+
+void initializeMountains(void) {
+	GLfloat meshSideLength = (GLfloat) 4/MESH_RES;
+	for (int i = 0; i < MESH_RES + 1; i++) {
+		for (int j = 0; j < MESH_RES + 1; j++) {
+			mountainVertices[i][j][0] = (GLfloat) i * meshSideLength;
+			mountainVertices[i][j][2] = (GLfloat) j * meshSideLength;
+		}
+	}
+
+	for (int i = 2; i < log(MESH_RES) / log(2); i *= 2) {
+		for (int j = 0; j < MESH_RES; j += MESH_RES / i) {
+			if (mountainVertices[i][j][1] == 0) {
+				mountainVertices[i][j][1] = getRandomNumber(initialRandAmount) / i + mountainVertices[i][j][0] * mountainHeight / (MESH_RES + 1);
+			}
+		}
+	}
+
+
+
+
+	for (int i = 0; i < MESH_RES; i++) {
+		for (int j = 0; j < MESH_RES; j++) {
+
+			for (int k = 0; k < 3; k++) {
+				mountainPolygonFaces[i][j][0][k] = mountainVertices[i][j][k];
+				mountainPolygonFaces[i][j][1][k] = mountainVertices[i + 1][j][k];
+				mountainPolygonFaces[i][j][2][k] = mountainVertices[i + 1][j + 1][k];
+				mountainPolygonFaces[i][j][3][k] = mountainVertices[i][j + 1][k];
+			}
+		}
+	}
 }
 
 void movePropeller(int x, int y, int z) {
@@ -605,6 +843,14 @@ void myKeyboard(unsigned char key, int x, int y) {
 		}
 		else {
 			mountainToggled = 0;
+		}
+	}
+	else if (key == 't') {
+		if (mountainTexturedToggled == 0) {
+			mountainTexturedToggled = 1;
+		}
+		else {
+			mountainTexturedToggled = 0;
 		}
 	}
 	glutPostRedisplay();
@@ -793,6 +1039,8 @@ void main(int argc, char** argv)
 	initializeCessna();
 
 	initializePropellers();
+
+	initializeMountains();
 
 	// print the controls on the console for the user
 	printKeyboardControls();
