@@ -32,7 +32,7 @@
 #define PROP_FACE_COUNT 132
 #define CESSNA_OBJECT_COUNT 34
 #define M_PI 3.141592
-#define MESH_RES 32
+#define MESH_RES 4
 
 /* function signature definitions */
 void printKeyboardControls(void);
@@ -129,10 +129,9 @@ GLuint skyTexture;
 GLuint mountainTexture;
 
 // mountain arrays to help build mountains
-GLint mountainVertexCount = (MESH_RES + 1) * (MESH_RES + 1);
-
+GLfloat coordinatePlaneSize = 4;
 GLfloat mountainVertices[(MESH_RES + 1)][(MESH_RES + 1)][3];
-GLfloat mountainPolygonFaces[MESH_RES][MESH_RES][4][3];
+GLfloat mountainPolygonFaceNormals[MESH_RES][MESH_RES][3];
 GLfloat mountainNormals[(MESH_RES + 1)][(MESH_RES + 1)][3];
 
 GLfloat mountainHeight = 10.0f;
@@ -493,9 +492,59 @@ void drawPropellers() {
 }
 
 
-//void calculateNormal(GLfloat v1[], GLfloat v2[]) {
-//
-//}
+void calculateNormal(GLfloat v1[], GLfloat v2[], GLfloat resultVector[]) {
+	resultVector[0] = v1[1] * v2[2] - v1[2] * v2[1];
+	resultVector[1] = v1[2] * v2[0] - v1[0] * v2[2];
+	resultVector[2] = v1[0] * v2[1] - v1[1] * v2[0];
+}
+
+void addVector(GLfloat v1[], GLfloat result[]) {
+	result[0] += v1[0];
+	result[1] += v1[1];
+	result[2] += v1[2];
+}
+
+GLfloat findVectorMagnitude(GLfloat v1[]) {
+	GLfloat result = sqrt(pow(v1[0], 2) + pow(v1[1], 2) + pow(v1[2], 2));
+	return result;
+}
+
+
+void findMountainVerticeNormals(void) {
+	for (int i = 0; i < MESH_RES + 1; i++) {
+		for (int j = 0; j < MESH_RES + 1; j++) {
+			GLfloat resVector[3] = { 0, 0, 0 };
+			GLfloat resMagnitude = 0;
+			int count = 0;
+
+			if (i < MESH_RES && j < MESH_RES) {
+				addVector(mountainPolygonFaceNormals[j][i], resVector);
+				resMagnitude += findVectorMagnitude(mountainPolygonFaceNormals[j][i]);
+				count++;
+			}
+			if (j < MESH_RES && i - 1 >= 0) {
+				addVector(mountainPolygonFaceNormals[i-1][j], resVector);
+				resMagnitude += findVectorMagnitude(mountainPolygonFaceNormals[i-1][j]);
+				count++;
+			}
+			if (i < MESH_RES && j - 1 >= 0) {
+				addVector(mountainPolygonFaceNormals[j - 1][i], resVector);
+				resMagnitude += findVectorMagnitude(mountainPolygonFaceNormals[j - 1][i]);
+				count++;
+			}
+			if (i - 1 >= 0 && j - 1 >= 0) {
+				addVector(mountainPolygonFaceNormals[j - 1][i - 1], resVector);
+				resMagnitude += findVectorMagnitude(mountainPolygonFaceNormals[j - 1][i - 1]);
+				count++;
+			}
+
+			mountainNormals[i][j][0] = (GLfloat) resVector[0] / count;
+			mountainNormals[i][j][1] = (GLfloat) resVector[1] / count;
+			mountainNormals[i][j][2] = (GLfloat) resVector[2] / count;
+		}
+	}
+}
+
 
 /************************************************************************
 
@@ -505,18 +554,46 @@ void drawPropellers() {
 
 *************************************************************************/
 void drawMountains(void) {
-	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, greenDiffuse);
+	glPushMatrix();
+	glTranslatef(0, -2, 0);
+	glScalef(3, 3, 3);
+	glEnable(GL_TEXTURE_2D);
+	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, highEmission);
+	glBindTexture(GL_TEXTURE_2D, mountainTexture);
+
+	glColor3f(1.0, 1.0, 1.0);
+	//glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, greenDiffuse);
+
 	for (int i = 0; i < MESH_RES; i++) {
 		for (int j = 0; j < MESH_RES; j++) {
+
 			glBegin(GL_POLYGON);
+			glNormal3fv(mountainNormals[i][j]);
+			glTexCoord2f(mountainVertices[i][j][0] / coordinatePlaneSize, mountainVertices[i][j][2] / coordinatePlaneSize);
 			glVertex3fv(mountainVertices[i][j]);
+
+			glNormal3fv(mountainNormals[i+1][j]);
+			glTexCoord2f(mountainVertices[i+1][j][0] / coordinatePlaneSize, mountainVertices[i][j][2] / coordinatePlaneSize);
 			glVertex3fv(mountainVertices[i + 1][j]);
+
+			glNormal3fv(mountainNormals[i+1][j+1]);
+			glTexCoord2f(mountainVertices[i+1][j+1][0] / coordinatePlaneSize, mountainVertices[i+1][j+1][2] / coordinatePlaneSize);
 			glVertex3fv(mountainVertices[i + 1][j + 1]);
+
+			glNormal3fv(mountainNormals[i][j+1]);
+			glTexCoord2f(mountainVertices[i][j+1][0] / coordinatePlaneSize, mountainVertices[i][j+1][2] / coordinatePlaneSize);
 			glVertex3fv(mountainVertices[i][j + 1]);
 			glEnd();
 		}
 	}
+
+	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, zeroMaterial);
+	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
+	glDisable(GL_TEXTURE_2D);
+	glPopMatrix();
 }
+
 
 void myIdle(void) {
 	theta += 1;
@@ -657,36 +734,27 @@ void initializePropellers(void) {
 }
 
 void initializeMountains(void) {
-	GLfloat meshSideLength = (GLfloat) 4/MESH_RES;
+	GLfloat meshSideLength = (GLfloat) coordinatePlaneSize/MESH_RES;
 	for (int i = 0; i < MESH_RES + 1; i++) {
 		for (int j = 0; j < MESH_RES + 1; j++) {
 			mountainVertices[i][j][0] = (GLfloat) i * meshSideLength;
+			mountainVertices[i][j][1] = 1 + 0.1 * getRandomNumber(1);
 			mountainVertices[i][j][2] = (GLfloat) j * meshSideLength;
-		}
-	}
 
-	for (int i = 2; i < log(MESH_RES) / log(2); i *= 2) {
-		for (int j = 0; j < MESH_RES; j += MESH_RES / i) {
-			if (mountainVertices[i][j][1] == 0) {
-				mountainVertices[i][j][1] = getRandomNumber(initialRandAmount) / i + mountainVertices[i][j][0] * mountainHeight / (MESH_RES + 1);
+			if (i == MESH_RES / 2 && j == MESH_RES / 2) {
+				mountainVertices[i][j][1] = 2.5;
 			}
 		}
 	}
-
-
-
 
 	for (int i = 0; i < MESH_RES; i++) {
 		for (int j = 0; j < MESH_RES; j++) {
-
-			for (int k = 0; k < 3; k++) {
-				mountainPolygonFaces[i][j][0][k] = mountainVertices[i][j][k];
-				mountainPolygonFaces[i][j][1][k] = mountainVertices[i + 1][j][k];
-				mountainPolygonFaces[i][j][2][k] = mountainVertices[i + 1][j + 1][k];
-				mountainPolygonFaces[i][j][3][k] = mountainVertices[i][j + 1][k];
-			}
+			calculateNormal(mountainVertices[i][j], mountainVertices[i + 1][j], mountainPolygonFaceNormals[i][j]);
 		}
 	}
+
+
+	findMountainVerticeNormals();
 }
 
 void movePropeller(int x, int y, int z) {
