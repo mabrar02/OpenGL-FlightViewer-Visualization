@@ -32,7 +32,7 @@
 #define PROP_FACE_COUNT 132
 #define CESSNA_OBJECT_COUNT 34
 #define M_PI 3.141592
-#define MESH_RES 4
+#define MESH_RES 40
 
 /* function signature definitions */
 void printKeyboardControls(void);
@@ -117,6 +117,7 @@ GLfloat whiteDiffuse[] = { 1.0, 1.0, 1.0, 1.0 };
 GLfloat whiteSpecular[] = { 1.0, 1.0, 1.0, 1.0 };
 GLfloat highEmission[] = { 1.0, 1.0, 1.0, 1.0 };
 GLfloat zeroMaterial[] = { 0.0, 0.0, 0.0, 1.0 };
+GLfloat halfAmbient[] = { 0.5, 0.5, 0.5, 1.0 };
 
 // fog variables
 GLfloat fogColor[] = { 1.0, 156.0 / 255.0, 219.0 / 255.0, 1.0 };
@@ -134,7 +135,7 @@ GLfloat mountainVertices[(MESH_RES + 1)][(MESH_RES + 1)][3];
 GLfloat mountainPolygonFaceNormals[MESH_RES][MESH_RES][3];
 GLfloat mountainNormals[(MESH_RES + 1)][(MESH_RES + 1)][3];
 
-GLfloat mountainHeight = 10.0f;
+GLfloat mountainHeight = 10;
 GLfloat initialRandAmount = 1.0f;
 
 /************************************************************************
@@ -452,6 +453,7 @@ void drawPropellers() {
 			glBegin(GL_POLYGON);
 
 			for (int k = 0; k < propParts[i].polygons[j].numVertices; k++) {
+				// use corresponding normal and vertex
 				glNormal3fv(propNormals[propParts[i].polygons[j].indices[k] - 1]);
 				glVertex3fv(propPoints[propParts[i].polygons[j].indices[k] - 1]);
 			}
@@ -460,6 +462,7 @@ void drawPropellers() {
 	}
 	glPopMatrix();
 
+	// repeat above process for second propeller, except translating to the right of plane
 	glPushMatrix();
 	glTranslatef(-0.25, -0.15, -0.35);
 	glRotatef(theta * propellerSpeed, 1, 0, 0);
@@ -492,24 +495,63 @@ void drawPropellers() {
 }
 
 
+/************************************************************************
+
+	Function:		calculateNormal
+
+	Description:	function used to compute the cross product between
+					two vectors and store result in result vector (calculate
+					normal for polygon)
+
+*************************************************************************/
 void calculateNormal(GLfloat v1[], GLfloat v2[], GLfloat resultVector[]) {
+	// calculate cross product
 	resultVector[0] = v1[1] * v2[2] - v1[2] * v2[1];
 	resultVector[1] = v1[2] * v2[0] - v1[0] * v2[2];
 	resultVector[2] = v1[0] * v2[1] - v1[1] * v2[0];
 }
 
+
+/************************************************************************
+
+	Function:		addVector
+
+	Description:	simple utility function used to add two vectors together 
+					and store in the resultant vector
+
+*************************************************************************/
 void addVector(GLfloat v1[], GLfloat result[]) {
+	// simple vector addition calculation
 	result[0] += v1[0];
 	result[1] += v1[1];
 	result[2] += v1[2];
 }
 
+
+/************************************************************************
+
+	Function:		findVectorMagnitude
+
+	Description:	simple utility function used to find the magnitude of 
+					a vector
+
+*************************************************************************/
 GLfloat findVectorMagnitude(GLfloat v1[]) {
+	// magnitude calculated by square root of sum of squares of components in vector
 	GLfloat result = sqrt(pow(v1[0], 2) + pow(v1[1], 2) + pow(v1[2], 2));
 	return result;
 }
 
 
+/************************************************************************
+
+	Function:		findMountainVerticeNormals
+
+	Description:	function used to calculate the normal for each vertice
+					based on the average normals of the polygons surrounding
+					the vertex
+
+*************************************************************************/
 void findMountainVerticeNormals(void) {
 	for (int i = 0; i < MESH_RES + 1; i++) {
 		for (int j = 0; j < MESH_RES + 1; j++) {
@@ -550,20 +592,33 @@ void findMountainVerticeNormals(void) {
 
 	Function:		drawMountains
 
-	Description:	function used in myDisplay() to draw the cessna
+	Description:	function used in myDisplay() to draw the mountains
 
 *************************************************************************/
 void drawMountains(void) {
 	glPushMatrix();
-	glTranslatef(0, -2, 0);
+	glTranslatef(0, -10, 0);
 	glScalef(3, 3, 3);
-	glEnable(GL_TEXTURE_2D);
-	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
-	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, highEmission);
-	glBindTexture(GL_TEXTURE_2D, mountainTexture);
-
 	glColor3f(1.0, 1.0, 1.0);
-	//glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, greenDiffuse);
+
+	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
+
+	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, halfAmbient);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, whiteSpecular);
+	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, zeroMaterial);
+	glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 50);
+
+	if (mountainTexturedToggled) {
+		glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, whiteDiffuse);
+		glEnable(GL_TEXTURE_2D);
+		glBindTexture(GL_TEXTURE_2D, mountainTexture);
+
+	}
+	else {
+		glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, greenDiffuse);
+	}
+
+
 
 	for (int i = 0; i < MESH_RES; i++) {
 		for (int j = 0; j < MESH_RES; j++) {
@@ -738,18 +793,26 @@ void initializeMountains(void) {
 	for (int i = 0; i < MESH_RES + 1; i++) {
 		for (int j = 0; j < MESH_RES + 1; j++) {
 			mountainVertices[i][j][0] = (GLfloat) i * meshSideLength;
-			mountainVertices[i][j][1] = 1 + 0.1 * getRandomNumber(1);
 			mountainVertices[i][j][2] = (GLfloat) j * meshSideLength;
 
 			if (i == MESH_RES / 2 && j == MESH_RES / 2) {
-				mountainVertices[i][j][1] = 2.5;
+				mountainVertices[i][j][1] = mountainHeight;
+			}
+			//else if ((i == 0 && j == 0) || (i == 0 && j == MESH_RES - 1) || (i == MESH_RES - 1 && j == 0) || (i == MESH_RES - 1 && j == MESH_RES - 1)) {
+			//	mountainVertices[i][j][1] = 0;
+			//}
+			else
+			{
+				GLfloat dist = sqrt(pow(i - MESH_RES / 2, 2) + pow(j - MESH_RES / 2, 2));
+				mountainVertices[i][j][1] = mountainHeight * (1 - dist / (MESH_RES - 1));
+				printf("%f\n", mountainVertices[i][j][1]);
 			}
 		}
 	}
 
 	for (int i = 0; i < MESH_RES; i++) {
 		for (int j = 0; j < MESH_RES; j++) {
-			calculateNormal(mountainVertices[i][j], mountainVertices[i + 1][j], mountainPolygonFaceNormals[i][j]);
+			calculateNormal(mountainVertices[i + 1][j], mountainVertices[i][j], mountainPolygonFaceNormals[i][j]);
 		}
 	}
 
