@@ -138,6 +138,7 @@ GLfloat mountainNormals[(MESH_RES + 1)][(MESH_RES + 1)][3];
 GLfloat mountainHeight = 10;
 GLfloat initialRandAmount = 1.0f;
 
+
 /************************************************************************
 
 	Function:		myDisplay
@@ -553,12 +554,22 @@ GLfloat findVectorMagnitude(GLfloat v1[]) {
 
 *************************************************************************/
 void findMountainVerticeNormals(void) {
+
+	// iterate through every vertex in the mountain and calculate the normal by getting normal of surrounding polygons
 	for (int i = 0; i < MESH_RES + 1; i++) {
 		for (int j = 0; j < MESH_RES + 1; j++) {
+			// resVector represents the numerator and resMagnitude the denominator
 			GLfloat resVector[3] = { 0, 0, 0 };
 			GLfloat resMagnitude = 0;
 			int count = 0;
 
+			/* There is 1 more vertex for each face on every side, meaning we need to check every edge case
+			* before we take the polygon into account for the average normal calculation.
+			* 
+			* E.g/ a 4 mesh by 4 mesh pyramid will have 5 x 5 vertices. The relationship between the [4][4] faces and the
+			* [5][5] matrices are that the potentially connected polygons for a vertex are [j][i], [i-1][j], [j-1][i], and [j-1][i-1]
+			* Check to see which of these 4 potential faces are within the index range, than add to the average if valid.
+			*/
 			if (i < MESH_RES && j < MESH_RES) {
 				addVector(mountainPolygonFaceNormals[j][i], resVector);
 				resMagnitude += findVectorMagnitude(mountainPolygonFaceNormals[j][i]);
@@ -580,9 +591,10 @@ void findMountainVerticeNormals(void) {
 				count++;
 			}
 
-			mountainNormals[i][j][0] = (GLfloat) resVector[0] / count;
-			mountainNormals[i][j][1] = (GLfloat) resVector[1] / count;
-			mountainNormals[i][j][2] = (GLfloat) resVector[2] / count;
+			// calculate and set average on a component basis
+			mountainNormals[i][j][0] = (GLfloat) resVector[0] / resMagnitude;
+			mountainNormals[i][j][1] = (GLfloat) resVector[1] / resMagnitude;
+			mountainNormals[i][j][2] = (GLfloat) resVector[2] / resMagnitude;
 		}
 	}
 }
@@ -596,18 +608,28 @@ void findMountainVerticeNormals(void) {
 
 *************************************************************************/
 void drawMountains(void) {
+	
+	// scope transformations for mountains 
 	glPushMatrix();
+
+	// scale and move our mountain accordingly 
 	glTranslatef(0, -10, 0);
 	glScalef(3, 3, 3);
+
+	// set color to white to avoid dark textures
 	glColor3f(1.0, 1.0, 1.0);
 
+	// shade both sides of the model
 	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
 
+
+	// set our material properties, slight shininess as instructed
 	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, halfAmbient);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, whiteSpecular);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, zeroMaterial);
 	glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 50);
 
+	// if our mountain texture should be toggled, we enable it as well as give the material a white diffuse as to not be affected, otherwise set to green
 	if (mountainTexturedToggled) {
 		glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, whiteDiffuse);
 		glEnable(GL_TEXTURE_2D);
@@ -619,11 +641,14 @@ void drawMountains(void) {
 	}
 
 
-
+	// iterate through every vertex, combining square sets of 4 into polygons
+	// Ensure we are going in counter clockwise fashion and following right hand rule
 	for (int i = 0; i < MESH_RES; i++) {
 		for (int j = 0; j < MESH_RES; j++) {
 
 			glBegin(GL_POLYGON);
+			
+			// for each vertex, we set the normal, the texture coord, and the vertex itself. To keep texture coord within (0,1), we divide by size
 			glNormal3fv(mountainNormals[i][j]);
 			glTexCoord2f(mountainVertices[i][j][0] / coordinatePlaneSize, mountainVertices[i][j][2] / coordinatePlaneSize);
 			glVertex3fv(mountainVertices[i][j]);
@@ -643,51 +668,139 @@ void drawMountains(void) {
 		}
 	}
 
+	// reset material/texture related properties to not affect outside state
 	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, zeroMaterial);
 	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
 	glDisable(GL_TEXTURE_2D);
+
+	// return to original matrix
 	glPopMatrix();
 }
 
 
+/************************************************************************
+
+	Function:		myIdle
+
+	Description:	idle function used for nonevents for GLUT, handles
+					continuous movement of cessna as well as propeller angle 
+					rotation
+
+*************************************************************************/
 void myIdle(void) {
+
+	// increase theta to rotate propellers
 	theta += 1;
+	
+	// continuously move cesnna in forward direction
 	moveCessna();
 
+	// force OpenGL to redraw the changes
 	glutPostRedisplay();
 }
 
+
+/************************************************************************
+
+	Function:		getRandomNumber
+
+	Description:	simple utility function to get a random float number 
+					between -n and n
+
+*************************************************************************/
 GLfloat getRandomNumber(GLfloat n) {
+
+	// first get a random float number between 0 and 1, then set the range by doubling, multiplying by n, then subtracting n
 	GLfloat randNum = ((float)rand() / RAND_MAX) * 2.0f * n - n;
 	return randNum;
 }
 
+
+/************************************************************************
+
+	Function:		addPlaneObject
+
+	Description:	Utility function used to create a new object/reset the 
+					existing one that contains a number of polygons
+
+
+	Used this reference as guidance for handling pointers in this manner
+	https://stackoverflow.com/questions/5844972/using-arrow-and-dot-operators-together-in-c
+
+*************************************************************************/
 void addPlaneObject(Object cessnaParts[], int* cessnaCount, Object* currentObj) {
+
+	// if we have our max number of objects, we can't create anymore
 	if (*cessnaCount < CESSNA_OBJECT_COUNT) {
+
+		// set the corresponding object index into the array of plane objects
 		cessnaParts[*cessnaCount] = *currentObj;
+
+		// increase our object count
 		(*cessnaCount)++;
+
+		// reset the current object
 		currentObj->numPolygons = 0;
 	}
 }
 
+
+/************************************************************************
+
+	Function:		addPolygon
+
+	Description:	Utility function used add polygons with its vertices
+					to a particular object 
+
+	Used this reference as guidance for handling pointers in this manner
+	https://stackoverflow.com/questions/5844972/using-arrow-and-dot-operators-together-in-c
+
+*************************************************************************/
 void addPolygon(Object* planeObj, int indices[], int numVertices) {
+	
+	// arbitrary max number of polygons per object specified
 	if (planeObj->numPolygons < 700) {
+
+		// create a new polygon in the current object
 		PolygonShape* polygon = &planeObj->polygons[planeObj->numPolygons];
+		
+		// set the polygons indices with the indices we have accumulated so far
 		memcpy(polygon->indices, indices, numVertices * sizeof(int));
+		
+		// set the count of vertices accordingly
 		polygon->numVertices = numVertices;
+
+		// increment the number of polygons in our object
 		planeObj->numPolygons++;
 	}
 }
 
+
+/************************************************************************
+
+	Function:		initializeCessna
+
+	Description:	Function used to read in cessna.txt file and create arrays
+					for the corresponding objects, polygons, and vertices.
+
+
+	Used this reference as guidance for reading values in this manner:
+	https://stackoverflow.com/questions/56602474/store-string-with-numbers-as-an-integer-array
+
+*************************************************************************/
 void initializeCessna(void) {
+
+	// open cessna.txt file
 	FILE* file;
 	if (fopen_s(&file, "cessna.txt", "r") != 0) {
 		printf("Error opening file\n");
 		return;
 	}
 
+	// create line buffer to read values
 	char line[128];
 
+	// iterate first time to grab every vertex value and store in an array
 	for (int i = 0; i < CESSNA_POINT_COUNT; i++) {
 		fgets(line, sizeof(line), file);
 		if (line[0] == 'v') {
@@ -695,99 +808,163 @@ void initializeCessna(void) {
 		}
 	}
 
+	// directly after the vertices is the normals so we grab the normals in a similar fashion as above
 	for (int i = 0; i < CESSNA_POINT_COUNT; i++) {
 		fgets(line, sizeof(line), file);
 		if (line[0] == 'n') {
 			sscanf_s(line, "n %f %f %f", &cessnaNormals[i][0], &cessnaNormals[i][1], &cessnaNormals[i][2]);
 		}
 	}
-	//skip gap
+
+	// skip the gap line before reading objects
 	fgets(line, sizeof(line), file);
 
+	// set variables for num of objects, the currentObject, and what the currentObject's polygon count is
 	int cessnaCount = 0;
 	Object currentObj;
 	currentObj.numPolygons = 0;
 
+	/*
+	Iterate through the entire list of objects until you reach the end of the file. Every time you reach g, create
+	a new Object. For every f you read, create a new polygon based off the vertices specified by the corresponding file line
+	*/
 	while (fgets(line, sizeof(line), file) != NULL) {
 		if (line[0] == 'g') {
+			// add the new object to be created
 			addPlaneObject(cessnaParts, &cessnaCount, &currentObj);
 		}
 		else if (line[0] == 'f') {
+			// arbitrary max number of indices
 			int indices[50];
 			int numVertices = 0;
+
+			// use strtok_s to grab every integer in the line, until the line is finished
 			char* token = NULL;
 			char* nextToken = NULL;
 			token = strtok_s(line + 1, " \t\n", &nextToken);
+
+			// add each vertice to be included in the corresponding polygon per line
 			while (token != NULL) {
 				indices[numVertices] = atoi(token);
 				numVertices++;
 				token = strtok_s(NULL, " \t\n", &nextToken); 
 			}
+
+			// create a polygon with the indices you've just added to the list
 			addPolygon(&currentObj, indices, numVertices);
 		}
 	}
 
-
+	// make sure to add the final object once you've finished grabbing all the polygons/vertices
 	addPlaneObject(cessnaParts, &cessnaCount, &currentObj);
+
+	// close the file
 	fclose(file);
 }
 
+
+/************************************************************************
+
+	Function:		initializePropellers
+
+	Description:	Function used to read in propeller.txt file and create arrays
+					for the corresponding objects, polygons, and vertices.
+
+
+	Used this reference as guidance for reading values in this manner:
+	https://stackoverflow.com/questions/56602474/store-string-with-numbers-as-an-integer-array
+
+*************************************************************************/
 void initializePropellers(void) {
+
+	// open propeller.txt file
 	FILE* file;
 	if (fopen_s(&file, "propeller.txt", "r") != 0) {
 		printf("Error opening file\n");
 		return;
 	}
 
+	// create line buffer to read values
 	char line[128];
 
+	// iterate first time to grab every vertex value and store in an array
 	for (int i = 0; i < PROP_POINT_COUNT; i++) {
 		fgets(line, sizeof(line), file);
 		if (line[0] == 'v') {
 			sscanf_s(line, "v %f %f %f", &propPoints[i][0], &propPoints[i][1], &propPoints[i][2]);
 		}
+
+		// offset every propeller vertex so that our propeller will end up in the origin (helps with rotation later)
 		propPoints[i][0] += 0.16;
 		propPoints[i][1] += 0.13;
 		propPoints[i][2] += -0.36;
 	}
 
+	// directly after the vertices is the normals so we grab the normals in a similar fashion as above
 	for (int i = 0; i < PROP_POINT_COUNT; i++) {
 		fgets(line, sizeof(line), file);
 		if (line[0] == 'n') {
 			sscanf_s(line, "n %f %f %f", &propNormals[i][0], &propNormals[i][1], &propNormals[i][2]);
 		}
 	}
-	//skip gap
+
+	// skip the gap line before reading objects
 	fgets(line, sizeof(line), file);
 
+	// set variables for num of objects, the currentObject, and what the currentObject's polygon count is
 	int propCount = 0;
 	Object currentObj;
 	currentObj.numPolygons = 0;
 
+
+	/*
+	Iterate through the entire list of objects until you reach the end of the file. Every time you reach g, create
+	a new Object. For every f you read, create a new polygon based off the vertices specified by the corresponding file line
+	*/
 	while (fgets(line, sizeof(line), file) != NULL) {
 		if (line[0] == 'g') {
+			// add the new object to be created
 			addPlaneObject(propParts, &propCount, &currentObj);
 		}
 		else if (line[0] == 'f') {
+			// arbitrary max number of indices
 			int indices[50];
 			int numVertices = 0;
+
+			// use strtok_s to grab every integer in the line, until the line is finished
 			char* token = NULL;
 			char* nextToken = NULL;
 			token = strtok_s(line + 1, " \t\n", &nextToken);
+
+			// add each vertice to be included in the corresponding polygon per line
 			while (token != NULL) {
 				indices[numVertices] = atoi(token);
 				numVertices++;
 				token = strtok_s(NULL, " \t\n", &nextToken);
 			}
+
+			// create a polygon with the indices you've just added to the list
 			addPolygon(&currentObj, indices, numVertices);
 		}
 	}
 
-
+	// make sure to add the final object once you've finished grabbing all the polygons/vertices
 	addPlaneObject(propParts, &propCount, &currentObj);
+
+	// close the file
 	fclose(file);
 }
 
+
+/************************************************************************
+
+	Function:		initializeMountains
+
+	Description:	Function used to help initialize mountains by setting 
+					initial pyramid shape and starting height distortion
+					process
+
+*************************************************************************/
 void initializeMountains(void) {
 	GLfloat meshSideLength = (GLfloat) coordinatePlaneSize/MESH_RES;
 	for (int i = 0; i < MESH_RES + 1; i++) {
@@ -798,9 +975,6 @@ void initializeMountains(void) {
 			if (i == MESH_RES / 2 && j == MESH_RES / 2) {
 				mountainVertices[i][j][1] = mountainHeight;
 			}
-			//else if ((i == 0 && j == 0) || (i == 0 && j == MESH_RES - 1) || (i == MESH_RES - 1 && j == 0) || (i == MESH_RES - 1 && j == MESH_RES - 1)) {
-			//	mountainVertices[i][j][1] = 0;
-			//}
 			else
 			{
 				GLfloat dist = sqrt(pow(i - MESH_RES / 2, 2) + pow(j - MESH_RES / 2, 2));
@@ -820,56 +994,77 @@ void initializeMountains(void) {
 	findMountainVerticeNormals();
 }
 
-void movePropeller(int x, int y, int z) {
-	for (int i = 0; i < PROP_POINT_COUNT; i++) {
-		propPoints[i][0] += (x * 0.01);
-		propPoints[i][1] += (y * 0.01);
-		propPoints[i][2] += (z * 0.01);
-	}
-}
 
+/************************************************************************
+
+	Function:		drawOrigin
+
+	Description:	function used to draw the origin lines, point, and starting
+					grid. Used by myDisplay() 
+
+*************************************************************************/
 void drawOrigin(void) {
 
+	// set basic materials as well as normal for our origin lines
 	glMaterialfv(GL_FRONT, GL_AMBIENT, zeroMaterial);
 	glMaterialfv(GL_FRONT, GL_SPECULAR, zeroMaterial);
 	glMaterialf(GL_FRONT, GL_SHININESS, 0.0f);
 	glNormal3f(0, 1, 0);
 
-	//origin lines
+	//Draw our origin lines
 	glBegin(GL_LINES);
+
+	// change line width to assignment required width
 	glLineWidth(5.0f);
 
+	// create red line representing x axis
 	glMaterialfv(GL_FRONT, GL_DIFFUSE, redDiffuse);
 	glVertex3f(0.0, 0.0, 0.0);
 	glVertex3f(0.5, 0.0, 0.0);
 
+	// create green line representing y axis
 	glMaterialfv(GL_FRONT, GL_DIFFUSE, greenDiffuse);
 	glVertex3f(0.0, 0.0, 0.0);
 	glVertex3f(0.0, 0.5, 0.0);
 
+	// create blue line representing  z axis
 	glMaterialfv(GL_FRONT, GL_DIFFUSE, blueDiffuse);
 	glVertex3f(0.0, 0.0, 0.0);
 	glVertex3f(0.0, 0.0, 0.5);
 	glEnd();
 
+	// reset our line width and material colors
 	glLineWidth(1.0f);
 	glColor3f(1.0, 1.0, 1.0);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, whiteDiffuse);
 	
-	// origin ball
+	// draw origin ball by creating a white sphere
 	GLUquadric* quad = gluNewQuadric();
+
+	// scope transformations for the origin ball
 	glPushMatrix();
+
+	// scale the sphere down
 	glScalef(0.01, 0.01, 0.01);
+
+	// create sphere
 	gluSphere(quad, 1, 20, 20);
+
+	// return to orignal matrix
 	glPopMatrix();
 
 
-
+	// scope transformations for starting grid
 	glPushMatrix();
 
-	glScalef(30.0, 0.0, 30.0);
+	// scale starting grid up
+	glScalef(40.0, 0.0, 40.0);
+
+	// set material color and normal
 	glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, lightblueDiffuse);
 	glNormal3f(0, 1, 0);
+
+	// create rectangular plane
 	glBegin(GL_POLYGON);
 	glVertex3f(-0.5, 0, 0.5);
 	glVertex3f(-0.5, 0, -0.5);
@@ -877,6 +1072,8 @@ void drawOrigin(void) {
 	glVertex3f(0.5, 0, 0.5);
 	glEnd();
 
+	// draw lines along the plane to display a grid pattern when wireframed
+	// draw lines along z axis
 	glBegin(GL_LINES);
 	for (GLfloat z = -0.4; z <= 0.4; z += 0.05) {
 		glVertex3f(-0.5, 0, z);
@@ -884,6 +1081,7 @@ void drawOrigin(void) {
 	}
 	glEnd();
 	
+	// draw lines along x axis
 	glBegin(GL_LINES);
 	for (GLfloat x = -0.4; x <= 0.4; x += 0.05) {
 		glVertex3f(x, 0, -0.5);
@@ -891,44 +1089,83 @@ void drawOrigin(void) {
 	}
 	glEnd();
 
+	// return to orignal matrix
 	glPopMatrix();
 
 	glColor3f(1.0, 1.0, 1.0);
 }
 
 
+/************************************************************************
 
+	Function:		myReshape
+
+	Description:	Handles the functionality of reshaping the window,
+					including fullscreening it
+
+*************************************************************************/
 void myReshape(int newWidth, int newHeight) {
+	
+	// adjust our viewport to the new dimensions
 	glViewport(0, 0, newWidth, newHeight);
 
+    // keep track of what our current dimensions are
 	currentWidth = newWidth;
 	currentHeight = newHeight;
 
+	// changem matrix modes to alter the camera
 	glMatrixMode(GL_PROJECTION);
+
+	// need to load identity to clear existing transformations
 	glLoadIdentity();
 
+	// set our perspective camera with new dimensions for aspect ratio
 	gluPerspective(45, (GLfloat) newWidth / (GLfloat) newHeight, 0.1, 100);
 
+	// return to model view mode
 	glMatrixMode(GL_MODELVIEW);
+
+	// force OpenGL to redraw the changes
 	glutPostRedisplay();
 }
 
+
+/************************************************************************
+
+	Function:		myPassiveMouse
+
+	Description:	Handles the functionality of the movement of the mouse
+
+
+*************************************************************************/
 void myPassiveMouse(int x, int y) {
+	
+	//based on how far or right your mouse is, a value will  be associated between -1 and 1
 	GLfloat halfScreen = (GLfloat)currentWidth / 2;
-
 	GLfloat cursorRatio = (GLfloat)(x - halfScreen) / halfScreen;
-
-
 	GLfloat tilt = cursorRatio;
 
-
+	// clamp the value between -1 and 1 to be used with changing our turn angle later
 	turnAngle = fmaxf(-1.0, fminf(1.0, tilt));
 
-
+	// force OpenGL to redraw the change
 	glutPostRedisplay();
 }
 
+
+/************************************************************************
+
+	Function:		myKeyboard
+
+	Description:	Handles the functionality of normal key keyboard
+					presses by the user
+
+*************************************************************************/
 void myKeyboard(unsigned char key, int x, int y) {
+
+	/* If the user presses q, they should quit, w -> toggle the wireframe, f -> toggle the full screen mode
+	* s -> toggle the sea and sky, g -> toggle the fog, m -> toggle the mountains, t -> toggle the mountain texture
+	*/
 	if (key == 'q') {
 		exit(0);
 	}
@@ -947,6 +1184,8 @@ void myKeyboard(unsigned char key, int x, int y) {
 		}
 		else {
 			fullScreenToggled = 0;
+			
+			// to unfull screen, we want to reset back to the original position and dimensions of the window
 			glutPositionWindow(originalWindowPosX, originalWindowPosY);
 			glutReshapeWindow(originalWidth, originalHeight);
 		}
@@ -984,11 +1223,23 @@ void myKeyboard(unsigned char key, int x, int y) {
 			mountainTexturedToggled = 0;
 		}
 	}
+	
+	// force OpenGL to redraw the change
 	glutPostRedisplay();
 }
 
 
+/************************************************************************
+
+	Function:		mySpecialKeyboard
+
+	Description:	Handles the functionality of special key keyboard
+					presses by the user
+
+*************************************************************************/
 void mySpecialKeyboard(int key, int x, int y) {
+
+	// if up or down is pressed, change height of plane, if page up or down is pressed, change speed (can't go past 0)
 	switch (key) {
 		case GLUT_KEY_UP:
 			forwardVector[1] += heightIncrement;
@@ -1005,48 +1256,85 @@ void mySpecialKeyboard(int key, int x, int y) {
 			}
 			break;
 	}
+
+	// force OpenGL to redraw the change
 	glutPostRedisplay();
 }
 
+
+/************************************************************************
+
+	Function:		initializeFog
+
+	Description:	simple function used to set the fog parameters
+
+*************************************************************************/
 void intializeFog(void) {
+	
+	// set our pink fog color
 	glFogfv(GL_FOG_COLOR, fogColor);
+
+	// ensure we are using exponential fog mode
 	glFogf(GL_FOG_MODE, GL_EXP);
+
+	// set a low fog density
 	glFogf(GL_FOG_DENSITY, fogDensity);
 }
 
+
+/************************************************************************
+
+	Function:		generateTextures
+
+	Description:	function used to set textureData with the corresponding
+					images 
+
+*************************************************************************/
 void generateTextures(void) {
+	
+	// define 3 different texture datas
 	GLubyte* seaData;
 	GLubyte* skyData;
 	GLubyte* mountainData;
 
+	// generate a texture ID for each texture
 	glGenTextures(1, &seaTexture);
 	glGenTextures(1, &skyTexture);
 	glGenTextures(1, &mountainTexture);
 
+	// define variables to be used w/ stbi_load
 	int imageWidth, imageHeight, numChannels;
+	
+	//use stbi_load to set corresponding texture data with image data (followed jpg example given by prof)
 	seaData = stbi_load("sea02.jpg", &imageWidth, &imageHeight, &numChannels, 0);
 
+	// bind the corresponding texture to apply properties to it
 	glBindTexture(GL_TEXTURE_2D, seaTexture);
 
+	// set s and t to repeat
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	
+	// use mipmapping for our textures and enable the respective filters
 	gluBuild2DMipmaps(GL_TEXTURE_2D, 3, imageWidth, imageHeight, GL_RGB, GL_UNSIGNED_BYTE, seaData);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	
 
+	// no longer need the data so free it
 	stbi_image_free(seaData);
 
+	//repeat process for next two textures
 	skyData = stbi_load("sky08.jpg", &imageWidth, &imageHeight, &numChannels, 0);
 
 	glBindTexture(GL_TEXTURE_2D, skyTexture);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
 	gluBuild2DMipmaps(GL_TEXTURE_2D, 3, imageWidth, imageHeight, GL_RGB, GL_UNSIGNED_BYTE, skyData);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 
 	stbi_image_free(skyData);
 
@@ -1057,16 +1345,18 @@ void generateTextures(void) {
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 
 	gluBuild2DMipmaps(GL_TEXTURE_2D, 3, imageWidth, imageHeight, GL_RGB, GL_UNSIGNED_BYTE, mountainData);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 
 	stbi_image_free(mountainData);
 
+	// unbind any existing texture
 	glBindTexture(GL_TEXTURE_2D, 0);
 
 }
+
 
 /************************************************************************
 
@@ -1077,24 +1367,33 @@ void generateTextures(void) {
 *************************************************************************/
 void initializeGL(void)
 {
+	// set our light color properties
 	GLfloat ambientLight[] = { 0.0, 0.0, 0.0, 1.0 };
 	GLfloat diffuseLight[] = { 1.0, 1.0, 1.0, 1.0 };
 	GLfloat specularLight[] = { 1.0, 1.0, 1.0, 1.0 };
 
+	// give scene global ambient light
 	GLfloat globalAmbientLight[] = { 1.0, 1.0, 1.0, 1.0 };
 	glLightModelfv(GL_LIGHT_MODEL_AMBIENT, globalAmbientLight);
 
+	// set the light properties
 	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
 	glLightfv(GL_LIGHT0, GL_SPECULAR, diffuseLight);
 	glLightfv(GL_LIGHT0, GL_DIFFUSE, specularLight);
 
+	// enable lighting
 	glEnable(GL_LIGHTING);
+
+	// enable the light we set properties for
 	glEnable(GL_LIGHT0);
+
+	// ensure our normals get converted to unit vectors to avoid messing with lighting calculations
 	glEnable(GL_NORMALIZE);
 
 	// enable depth testing
 	glEnable(GL_DEPTH_TEST);
-
+	
+	// set our shading model to use smooth (per vertex) shading
 	glShadeModel(GL_SMOOTH);
 
 	// enable blending for fading opacity
@@ -1116,6 +1415,7 @@ void initializeGL(void)
 	glMatrixMode(GL_MODELVIEW);
 }
 
+
 /************************************************************************
 
 	Function:		main
@@ -1128,7 +1428,6 @@ void main(int argc, char** argv)
 {
 	// seed random number generator
 	srand(time(NULL));
-
 
 	// initialize the toolkit
 	glutInit(&argc, argv);
@@ -1148,29 +1447,40 @@ void main(int argc, char** argv)
 	// register redraw function
 	glutDisplayFunc(myDisplay);
 
+	// register reshape function
 	glutReshapeFunc(myReshape);
 
+	// register keyboard function
 	glutKeyboardFunc(myKeyboard);
 
+	// register special keyboard function
 	glutSpecialFunc(mySpecialKeyboard);
 
+	// register passive mouse movement function
 	glutPassiveMotionFunc(myPassiveMouse);
 
+	// register idle function
 	glutIdleFunc(myIdle);
 
 	// register the blend function to enable opacity fading
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+	// read the images in as texture data
 	generateTextures();
 
+	// initialize fog related properties
 	intializeFog();
+
 	// initialize the rendering context
 	initializeGL();
 
+	// read in the file pertaining to the cessna model's parts
 	initializeCessna();
 
+	// read in the file pertaining to the propeller model's parts
 	initializePropellers();
 
+	// generate mountains and store in an array to be drawn
 	initializeMountains();
 
 	// print the controls on the console for the user
@@ -1179,6 +1489,7 @@ void main(int argc, char** argv)
 	// go into a perpetual loop
 	glutMainLoop();
 }
+
 
 /************************************************************************
 
