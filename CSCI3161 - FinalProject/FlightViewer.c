@@ -32,7 +32,7 @@
 #define PROP_FACE_COUNT 132
 #define CESSNA_OBJECT_COUNT 34
 #define M_PI 3.141592
-#define MESH_RES 40
+#define MESH_RES 32
 
 /* function signature definitions */
 void printKeyboardControls(void);
@@ -135,7 +135,7 @@ GLfloat mountainVertices[(MESH_RES + 1)][(MESH_RES + 1)][3];
 GLfloat mountainPolygonFaceNormals[MESH_RES][MESH_RES][3];
 GLfloat mountainNormals[(MESH_RES + 1)][(MESH_RES + 1)][3];
 
-GLfloat mountainHeight = 10;
+GLfloat mountainHeight = 2;
 GLfloat initialRandAmount = 1.0f;
 
 
@@ -613,7 +613,7 @@ void drawMountains(void) {
 	glPushMatrix();
 
 	// scale and move our mountain accordingly 
-	glTranslatef(0, -10, 0);
+	glTranslatef(0, 1, 0);
 	glScalef(3, 3, 3);
 
 	// set color to white to avoid dark textures
@@ -677,6 +677,60 @@ void drawMountains(void) {
 	glPopMatrix();
 }
 
+/************************************************************************
+
+	Function:		initializeMountains
+
+	Description:	Function used to help initialize mountains by setting
+					initial pyramid shape and starting height distortion
+					process
+
+*************************************************************************/
+void initializeMountains(void) {
+	GLfloat meshSideLength = (GLfloat)coordinatePlaneSize / MESH_RES;
+	for (int i = 0; i < MESH_RES + 1; i++) {
+		for (int j = 0; j < MESH_RES + 1; j++) {
+			mountainVertices[i][j][0] = (GLfloat)i * meshSideLength;
+			mountainVertices[i][j][2] = (GLfloat)j * meshSideLength;
+
+			//if (i == MESH_RES / 2 && j == MESH_RES / 2) {
+			//	mountainVertices[i][j][1] = mountainHeight;
+			//}
+			//else
+			//{
+			//	GLfloat dist = sqrt(pow(i - MESH_RES / 2, 2) + pow(j - MESH_RES / 2, 2));
+			//	mountainVertices[i][j][1] = mountainHeight * (1 - dist / (MESH_RES - 1));
+			//	printf("%f\n", mountainVertices[i][j][1]);
+			//}
+		}
+	}
+
+	for (int i = 0; i <= (MESH_RES + 1)/2; i++) {
+		GLfloat height = mountainVertices[i][i][0] * 2 * mountainHeight / coordinatePlaneSize;
+
+		for (int j = i; j < MESH_RES + 1 - i; j++) {
+			mountainVertices[i][j][1] = height;
+			mountainVertices[j][i][1] = height;
+			mountainVertices[MESH_RES-i][j][1] = height;
+			mountainVertices[j][MESH_RES-i][1] = height;
+		}
+	}
+	
+	for (int i = 0; i < MESH_RES + 1; i++) {
+		for (int j = 0; j < MESH_RES + 1; j++) {
+			printf("(%d, %d): %f, %f, %f\n", i, j, mountainVertices[i][j][0], mountainVertices[i][j][1], mountainVertices[i][j][2]);
+		}
+	}
+
+	for (int i = 0; i < MESH_RES; i++) {
+		for (int j = 0; j < MESH_RES; j++) {
+			calculateNormal(mountainVertices[i + 1][j], mountainVertices[i][j], mountainPolygonFaceNormals[i][j]);
+		}
+	}
+
+
+	findMountainVerticeNormals();
+}
 
 /************************************************************************
 
@@ -956,43 +1010,7 @@ void initializePropellers(void) {
 }
 
 
-/************************************************************************
 
-	Function:		initializeMountains
-
-	Description:	Function used to help initialize mountains by setting 
-					initial pyramid shape and starting height distortion
-					process
-
-*************************************************************************/
-void initializeMountains(void) {
-	GLfloat meshSideLength = (GLfloat) coordinatePlaneSize/MESH_RES;
-	for (int i = 0; i < MESH_RES + 1; i++) {
-		for (int j = 0; j < MESH_RES + 1; j++) {
-			mountainVertices[i][j][0] = (GLfloat) i * meshSideLength;
-			mountainVertices[i][j][2] = (GLfloat) j * meshSideLength;
-
-			if (i == MESH_RES / 2 && j == MESH_RES / 2) {
-				mountainVertices[i][j][1] = mountainHeight;
-			}
-			else
-			{
-				GLfloat dist = sqrt(pow(i - MESH_RES / 2, 2) + pow(j - MESH_RES / 2, 2));
-				mountainVertices[i][j][1] = mountainHeight * (1 - dist / (MESH_RES - 1));
-				printf("%f\n", mountainVertices[i][j][1]);
-			}
-		}
-	}
-
-	for (int i = 0; i < MESH_RES; i++) {
-		for (int j = 0; j < MESH_RES; j++) {
-			calculateNormal(mountainVertices[i + 1][j], mountainVertices[i][j], mountainPolygonFaceNormals[i][j]);
-		}
-	}
-
-
-	findMountainVerticeNormals();
-}
 
 
 /************************************************************************
