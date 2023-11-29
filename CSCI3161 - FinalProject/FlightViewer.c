@@ -136,7 +136,7 @@ GLfloat mountainPolygonFaceNormals[MESH_RES][MESH_RES][3];
 GLfloat mountainNormals[(MESH_RES + 1)][(MESH_RES + 1)][3];
 
 GLfloat mountainHeight = 2;
-GLfloat initialRandAmount = 0.33f;
+GLfloat initialRandAmount = 0.25;
 
 GLint maxDepth = 6;
 
@@ -615,7 +615,7 @@ void drawMountains(void) {
 
 	// scale and move our mountain accordingly 
 	glTranslatef(0, 1, 0);
-	glScalef(8, 3, 8);
+	glScalef(16, 3, 8);
 
 	// set color to white to avoid dark textures
 	glColor3f(1.0, 1.0, 1.0);
@@ -690,7 +690,11 @@ void drawMountains(void) {
 GLfloat getRandomNumber(GLfloat n) {
 
 	// first get a random float number between 0 and 1, then set the range by doubling, multiplying by n, then subtracting n
-	GLfloat randNum = ((GLfloat)rand() / RAND_MAX) * 2.0f * n - n;
+	GLfloat randNum = n;
+	if (rand() % 2 == 0) {
+		randNum = -n;
+	}
+	//GLfloat randNum = ((GLfloat)rand() / RAND_MAX) * 2.0f * n - n;
 	return randNum;
 }
 
