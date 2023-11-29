@@ -103,6 +103,7 @@ GLint propellerSpeed = 2;
 // light variables
 GLfloat lightPos[] = { 0, 20.0, 5, 0.0 };
 GLfloat cessnaShininess = 200.0;
+GLfloat cessnaAmbient[] = { 0.1, 0.1, 0.1, 1.0 };
 
 // material variables
 GLfloat yellowDiffuse[] = {224.0 / 255.0, 185.0 / 255.0, 76.0 / 255.0, 1.0};
@@ -118,6 +119,7 @@ GLfloat whiteSpecular[] = { 1.0, 1.0, 1.0, 1.0 };
 GLfloat highEmission[] = { 1.0, 1.0, 1.0, 1.0 };
 GLfloat zeroMaterial[] = { 0.0, 0.0, 0.0, 1.0 };
 GLfloat halfAmbient[] = { 0.5, 0.5, 0.5, 1.0 };
+
 
 // fog variables
 GLfloat fogColor[] = { 1.0, 156.0 / 255.0, 219.0 / 255.0, 1.0 };
@@ -384,6 +386,10 @@ void drawCessna() {
 	// rotate cessna on x axis to tilt towards while turning
 	glRotatef(-45 * turnAngle, 1, 0, 0);
 	
+	// set the rest of the material properties, give the cessna some shine
+	glMaterialfv(GL_FRONT, GL_AMBIENT, cessnaAmbient);
+	glMaterialfv(GL_FRONT, GL_SPECULAR, whiteSpecular);
+	glMaterialf(GL_FRONT, GL_SHININESS, cessnaShininess);
 
 	// one indexed, iterate through object loop to draw each object with all the polygons associated, and colour accordingly
 	for (int i = 1; i < CESSNA_OBJECT_COUNT; i++) {
@@ -401,11 +407,6 @@ void drawCessna() {
 		else {
 			glMaterialfv(GL_FRONT, GL_DIFFUSE, blackDiffuse);
 		}
-
-		// set the rest of the material properties, give the cessna some shine
-		glMaterialfv(GL_FRONT, GL_AMBIENT, zeroMaterial);
-		glMaterialfv(GL_FRONT, GL_SPECULAR, whiteSpecular);
-		glMaterialf(GL_FRONT, GL_SHININESS, cessnaShininess);
 
 		// iterate through the list of polygons, and create each one
 		for (int j = 0; j < cessnaParts[i].numPolygons; j++) {
