@@ -32,7 +32,7 @@
 #define PROP_FACE_COUNT 132
 #define CESSNA_OBJECT_COUNT 34
 #define M_PI 3.141592
-#define MESH_RES 40
+#define MESH_RES 8
 
 /* function signature definitions */
 void printKeyboardControls(void);
@@ -101,8 +101,8 @@ GLfloat theta = 0.0;
 GLint propellerSpeed = 2;
 
 // light variables
-GLfloat lightPos[] = { 0, 10.0, 0, 0.0 };
-GLfloat cessnaShininess = 100.0;
+GLfloat lightPos[] = { 0, 20.0, 5, 0.0 };
+GLfloat cessnaShininess = 200.0;
 
 // material variables
 GLfloat yellowDiffuse[] = {224.0 / 255.0, 185.0 / 255.0, 76.0 / 255.0, 1.0};
@@ -135,10 +135,12 @@ GLfloat mountainVertices[(MESH_RES + 1)][(MESH_RES + 1)][3];
 GLfloat mountainPolygonFaceNormals[MESH_RES][MESH_RES][3];
 GLfloat mountainNormals[(MESH_RES + 1)][(MESH_RES + 1)][3];
 
-GLfloat mountainHeight = 2;
-GLfloat initialRandAmount = 0.25;
+GLfloat mountainHeight = 8;
+GLfloat initialRandAmount = 4;
 
 GLint maxDepth = 6;
+
+GLint sceneSize = 70;
 
 /************************************************************************
 
@@ -285,7 +287,7 @@ void drawSea(void) {
 	glRotatef(90, 1, 0, 0);
 
 	// create disk with altered quadric
-	gluDisk(seaQuadricPtr, 0, 42, 50, 8);
+	gluDisk(seaQuadricPtr, 0, sceneSize, 50, 10);
 
 	// return to original matrix
 	glPopMatrix();
@@ -321,13 +323,13 @@ void drawSky(void) {
 	glPushMatrix();
 	
 	// rotating our cylinder pushes it down, so we have to translate it up
-	glTranslatef(0, 50, 0);
+	glTranslatef(0, sceneSize, 0);
 
 	// rotate our cylinder so it's upright
 	glRotatef(90, 1, 0, 0);
 
 	// create cylinder with altered quadric
-	gluCylinder(skyQuadricPtr, 41, 41, 50, 20, 20);
+	gluCylinder(skyQuadricPtr, sceneSize-1, sceneSize-1, sceneSize, 20, 20);
 
 	// return to original matrix
 	glPopMatrix();
@@ -615,7 +617,7 @@ void drawMountains(void) {
 
 	// scale and move our mountain accordingly 
 	glTranslatef(0, 1, 0);
-	glScalef(16, 3, 8);
+	glScalef(8, 0.5, 8);
 
 	// set color to white to avoid dark textures
 	glColor3f(1.0, 1.0, 1.0);
@@ -772,12 +774,12 @@ void initializeMountains(void) {
 
 
 
-	//for (int i = 0; i < MESH_RES + 1; i++) {
-	//	for (int j = 0; j < MESH_RES + 1; j++) {
-	//		printf("VERTICES: (%d, %d): %f, %f, %f\n", i, j, mountainVertices[i][j][0], mountainVertices[i][j][1], mountainVertices[i][j][2]);
-	//		//printf("(%d, %d): %f, %f, %f\n", i, j, mountainNormals[i][j][0], mountainNormals[i][j][1], mountainNormals[i][j][2]);
-	//	}
-	//}
+	for (int i = 0; i < MESH_RES + 1; i++) {
+		for (int j = 0; j < MESH_RES + 1; j++) {
+			printf("VERTICES: (%d, %d): %f, %f, %f\n", i, j, mountainVertices[i][j][0], mountainVertices[i][j][1], mountainVertices[i][j][2]);
+			//printf("(%d, %d): %f, %f, %f\n", i, j, mountainNormals[i][j][0], mountainNormals[i][j][1], mountainNormals[i][j][2]);
+		}
+	}
 
 	for (int i = 0; i < MESH_RES; i++) {
 		for (int j = 0; j < MESH_RES; j++) {
@@ -795,6 +797,7 @@ void initializeMountains(void) {
 	//	}
 	//}
 }
+
 
 /************************************************************************
 
@@ -816,9 +819,6 @@ void myIdle(void) {
 	// force OpenGL to redraw the changes
 	glutPostRedisplay();
 }
-
-
-
 
 
 /************************************************************************
@@ -1061,9 +1061,6 @@ void initializePropellers(void) {
 }
 
 
-
-
-
 /************************************************************************
 
 	Function:		drawOrigin
@@ -1189,7 +1186,7 @@ void myReshape(int newWidth, int newHeight) {
 	glLoadIdentity();
 
 	// set our perspective camera with new dimensions for aspect ratio
-	gluPerspective(45, (GLfloat) newWidth / (GLfloat) newHeight, 0.1, 100);
+	gluPerspective(45, (GLfloat) newWidth / (GLfloat) newHeight, 0.1, sceneSize * 2);
 
 	// return to model view mode
 	glMatrixMode(GL_MODELVIEW);
@@ -1312,9 +1309,11 @@ void mySpecialKeyboard(int key, int x, int y) {
 	switch (key) {
 		case GLUT_KEY_UP:
 			forwardVector[1] += heightIncrement;
+			camPos[1] += heightIncrement;
 			break;
 		case GLUT_KEY_DOWN:
 			forwardVector[1] -= heightIncrement;
+			camPos[1] += heightIncrement;
 			break;
 		case GLUT_KEY_PAGE_UP:
 			moveSpeed += speedIncrement;
@@ -1478,7 +1477,7 @@ void initializeGL(void)
 	glLoadIdentity();
 
 	// set window mode to perspective
-	gluPerspective(45, (GLfloat)originalWidth / (GLfloat)originalHeight, 0.1, 20);
+	gluPerspective(45, (GLfloat)originalWidth / (GLfloat)originalHeight, 0.1, sceneSize * 2);
 
 	// change into model-view mode so that we can change the object positions
 	glMatrixMode(GL_MODELVIEW);
