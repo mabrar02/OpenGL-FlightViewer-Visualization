@@ -32,7 +32,7 @@
 #define PROP_FACE_COUNT 132
 #define CESSNA_OBJECT_COUNT 34
 #define M_PI 3.141592
-#define MESH_RES 8
+#define MESH_RES 4
 
 /* function signature definitions */
 void printKeyboardControls(void);
@@ -132,14 +132,29 @@ GLuint mountainTexture;
 // mountain arrays to help build mountains
 GLfloat coordinatePlaneSize = 4;
 GLfloat mountainVertices[(MESH_RES + 1)][(MESH_RES + 1)][3];
-GLfloat mountainPolygonFaceNormals[MESH_RES][MESH_RES][3];
 GLfloat mountainNormals[(MESH_RES + 1)][(MESH_RES + 1)][3];
+GLfloat mountain2Vertices[(MESH_RES + 1)][(MESH_RES + 1)][3];
+GLfloat mountain2Normals[(MESH_RES + 1)][(MESH_RES + 1)][3];
+GLfloat mountain3Vertices[(MESH_RES + 1)][(MESH_RES + 1)][3];
+GLfloat mountain3Normals[(MESH_RES + 1)][(MESH_RES + 1)][3];
+GLfloat mountainPolygonFaceNormals[MESH_RES][MESH_RES][3];
 
+// mountain transformation arrays
+GLfloat mountainScale[3] = { 4, 1, 4 };
+GLfloat mountainTranslation[3] = {0, 0, 0};
+
+GLfloat mountain2Scale[3] = { 4, 1, 4 };
+GLfloat mountain2Translation[3] = { -30, 0, -30 };
+
+GLfloat mountain3Scale[3] = { 4, 1, 4 };
+GLfloat mountain3Translation[3] = { 30, 0, 30 };
+
+// mountain variables
 GLfloat mountainHeight = 8;
 GLfloat initialRandAmount = 4;
-
 GLint maxDepth = 6;
 
+// size of sky and sea
 GLint sceneSize = 70;
 
 /************************************************************************
@@ -556,7 +571,7 @@ GLfloat findVectorMagnitude(GLfloat v1[]) {
 					the vertex
 
 *************************************************************************/
-void findMountainVerticeNormals(void) {
+void findMountainVerticeNormals(GLfloat mountN[MESH_RES+1][MESH_RES+1][3]) {
 
 	// iterate through every vertex in the mountain and calculate the normal by getting normal of surrounding polygons
 	for (int i = 0; i < MESH_RES + 1; i++) {
@@ -595,9 +610,9 @@ void findMountainVerticeNormals(void) {
 			}
 
 			// calculate and set average on a component basis
-			mountainNormals[i][j][0] = (GLfloat) resVector[0] / count;
-			mountainNormals[i][j][1] = (GLfloat) resVector[1] / count;
-			mountainNormals[i][j][2] = (GLfloat) resVector[2] / count;
+			mountN[i][j][0] = (GLfloat) resVector[0] / count;
+			mountN[i][j][1] = (GLfloat) resVector[1] / count;
+			mountN[i][j][2] = (GLfloat) resVector[2] / count;
 		}
 	}
 }
@@ -612,19 +627,11 @@ void findMountainVerticeNormals(void) {
 *************************************************************************/
 void drawMountains(void) {
 	
-	// scope transformations for mountains 
-	glPushMatrix();
-
-	// scale and move our mountain accordingly 
-	glTranslatef(0, 1, 0);
-	glScalef(8, 0.5, 8);
-
 	// set color to white to avoid dark textures
 	glColor3f(1.0, 1.0, 1.0);
 
 	// shade both sides of the model
 	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_TRUE);
-
 
 	// set our material properties, slight shininess as instructed
 	glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, halfAmbient);
@@ -642,6 +649,14 @@ void drawMountains(void) {
 	else {
 		glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, greenDiffuse);
 	}
+
+
+	// scope transformations for mountain 1
+	glPushMatrix();
+
+	// scale and move our mountain accordingly 
+	glTranslatef(mountainTranslation[0], mountainTranslation[1], mountainTranslation[2]);
+	glScalef(mountainScale[0], mountainScale[1], mountainScale[2]);
 
 
 	// iterate through every vertex, combining square sets of 4 into polygons
@@ -671,13 +686,92 @@ void drawMountains(void) {
 		}
 	}
 
+	// return to original matrix
+	glPopMatrix();
+
+
+	// scope transformations for mountain 2
+	glPushMatrix();
+
+	// scale and move our mountain accordingly 
+	glTranslatef(mountain2Translation[0], mountain2Translation[1], mountain2Translation[2]);
+	glScalef(mountain2Scale[0], mountain2Scale[1], mountain2Scale[2]);
+
+
+	// iterate through every vertex, combining square sets of 4 into polygons3
+	// Ensure we are going in counter clockwise fashion and following right hand rule
+	for (int i = 0; i < MESH_RES; i++) {
+		for (int j = 0; j < MESH_RES; j++) {
+
+			glBegin(GL_POLYGON);
+
+			// for each vertex, we set the normal, the texture coord, and the vertex itself. To keep texture coord within (0,1), we divide by size
+			glNormal3fv(mountain2Normals[i][j]);
+			glTexCoord2f(mountain2Vertices[i][j][0] / coordinatePlaneSize, mountain2Vertices[i][j][2] / coordinatePlaneSize);
+			glVertex3fv(mountain2Vertices[i][j]);
+
+			glNormal3fv(mountain2Normals[i + 1][j]);
+			glTexCoord2f(mountain2Vertices[i + 1][j][0] / coordinatePlaneSize, mountain2Vertices[i][j][2] / coordinatePlaneSize);
+			glVertex3fv(mountain2Vertices[i + 1][j]);
+
+			glNormal3fv(mountain2Normals[i + 1][j + 1]);
+			glTexCoord2f(mountain2Vertices[i + 1][j + 1][0] / coordinatePlaneSize, mountain2Vertices[i + 1][j + 1][2] / coordinatePlaneSize);
+			glVertex3fv(mountain2Vertices[i + 1][j + 1]);
+
+			glNormal3fv(mountain2Normals[i][j + 1]);
+			glTexCoord2f(mountain2Vertices[i][j + 1][0] / coordinatePlaneSize, mountain2Vertices[i][j + 1][2] / coordinatePlaneSize);
+			glVertex3fv(mountain2Vertices[i][j + 1]);
+			glEnd();
+		}
+	}
+
+	// return to original matrix
+	glPopMatrix();
+
+
+	// scope transformations for mountain 3
+	glPushMatrix();
+
+	// scale and move our mountain accordingly 
+	glTranslatef(mountain3Translation[0], mountain3Translation[1], mountain3Translation[2]);
+	glScalef(mountain3Scale[0], mountain3Scale[1], mountain3Scale[2]);
+
+
+	// iterate through every vertex, combining square sets of 4 into polygons
+	// Ensure we are going in counter clockwise fashion and following right hand rule
+	for (int i = 0; i < MESH_RES; i++) {
+		for (int j = 0; j < MESH_RES; j++) {
+
+			glBegin(GL_POLYGON);
+
+			// for each vertex, we set the normal, the texture coord, and the vertex itself. To keep texture coord within (0,1), we divide by size
+			glNormal3fv(mountain3Normals[i][j]);
+			glTexCoord2f(mountain3Vertices[i][j][0] / coordinatePlaneSize, mountain3Vertices[i][j][2] / coordinatePlaneSize);
+			glVertex3fv(mountain3Vertices[i][j]);
+
+			glNormal3fv(mountain3Normals[i + 1][j]);
+			glTexCoord2f(mountain3Vertices[i + 1][j][0] / coordinatePlaneSize, mountain3Vertices[i][j][2] / coordinatePlaneSize);
+			glVertex3fv(mountain3Vertices[i + 1][j]);
+
+			glNormal3fv(mountain3Normals[i + 1][j + 1]);
+			glTexCoord2f(mountain3Vertices[i + 1][j + 1][0] / coordinatePlaneSize, mountain3Vertices[i + 1][j + 1][2] / coordinatePlaneSize);
+			glVertex3fv(mountain3Vertices[i + 1][j + 1]);
+
+			glNormal3fv(mountain3Normals[i][j + 1]);
+			glTexCoord2f(mountain3Vertices[i][j + 1][0] / coordinatePlaneSize, mountain3Vertices[i][j + 1][2] / coordinatePlaneSize);
+			glVertex3fv(mountain3Vertices[i][j + 1]);
+			glEnd();
+		}
+	}
+
+	// return to original matrix
+	glPopMatrix();
+
+
 	// reset material/texture related properties to not affect outside state
 	glMaterialfv(GL_FRONT_AND_BACK, GL_EMISSION, zeroMaterial);
 	glLightModeli(GL_LIGHT_MODEL_TWO_SIDE, GL_FALSE);
 	glDisable(GL_TEXTURE_2D);
-
-	// return to original matrix
-	glPopMatrix();
 }
 
 
@@ -692,27 +786,37 @@ void drawMountains(void) {
 GLfloat getRandomNumber(GLfloat n) {
 
 	// first get a random float number between 0 and 1, then set the range by doubling, multiplying by n, then subtracting n
-	GLfloat randNum = n;
-	if (rand() % 2 == 0) {
-		randNum = -n;
-	}
-	//GLfloat randNum = ((GLfloat)rand() / RAND_MAX) * 2.0f * n - n;
+	GLfloat randNum = ((GLfloat)rand() / RAND_MAX) * 2.0f * n - n;
 	return randNum;
 }
 
 
+/************************************************************************
+
+	Function:		addMidpointHeightNoise
+
+	Description:	recursive function used to increase/decrease height of midpoints 
+					by  random amount whose range halves with each recursive call.
+
+*************************************************************************/
 void addMidpointHeightNoise(int v1[], int v2[], int v3[], int v4[], GLfloat n, int depth, GLfloat vertices[MESH_RES+1][MESH_RES+1][3]) {
+
+	// end recursion once we've reached the desired depth
 	if (depth == 0) {
 		return;
 	}
 
+	// find all mid points of the 4 corners provided in the recursive call, including the centre
 	int mid12[] = {(v1[0] + v2[0])/2, (v1[1] + v2[1]) / 2 };
 	int mid23[] = {(v2[0] + v3[0]) / 2, (v2[1] + v3[1]) / 2 };
 	int mid34[] = { (v3[0] + v4[0]) / 2, (v3[1] + v4[1]) / 2 };
 	int mid41[] = { (v4[0] + v1[0]) / 2, (v4[1] + v1[1]) / 2 };
 	int center[] = { (v1[0] + v2[0] + v3[0] + v4[0]) / 4, (v1[1] + v2[1] + v3[1] + v4[1]) / 4 };
 
+	// if this is the first iteration, don't alter heights
 	if (depth != maxDepth) {
+		
+		// get a different random value from the random range for each height to be altered
 		GLfloat r = getRandomNumber(n);
 		vertices[mid12[0]][mid12[1]][1] += r;
 
@@ -729,6 +833,7 @@ void addMidpointHeightNoise(int v1[], int v2[], int v3[], int v4[], GLfloat n, i
 		vertices[center[0]][center[1]][1] += r;
 	}
 
+	// the 4 sub squares we have created will be passed recursively to alter their mid point heights, with range of numbers halved
 	addMidpointHeightNoise(v1, mid12, center, mid41, n / 2, depth - 1, vertices);
 	addMidpointHeightNoise(mid12, v2, mid23, center, n / 2, depth - 1, vertices);
 	addMidpointHeightNoise(center, mid23, v3, mid34, n / 2, depth - 1, vertices);
@@ -745,57 +850,52 @@ void addMidpointHeightNoise(int v1[], int v2[], int v3[], int v4[], GLfloat n, i
 					process
 
 *************************************************************************/
-void initializeMountains(void) {
+void initializeMountains(GLfloat mountV[MESH_RES+1][MESH_RES+1][3], GLfloat mountN[MESH_RES + 1][MESH_RES + 1][3]) {
+	
+	// divide our flat plane size by the mesh resolution to get each side length for the squares
 	GLfloat meshSideLength = (GLfloat)coordinatePlaneSize / MESH_RES;
+
+	// set the x and z values for each vertice based off the mesh res side lengths
 	for (int i = 0; i < MESH_RES + 1; i++) {
 		for (int j = 0; j < MESH_RES + 1; j++) {
-			mountainVertices[i][j][0] = (GLfloat)i * meshSideLength;
-			mountainVertices[i][j][2] = (GLfloat)j * meshSideLength;
+			mountV[i][j][0] = (GLfloat)i * meshSideLength;
+			mountV[i][j][2] = (GLfloat)j * meshSideLength;
 		}
 	}
 
+	// iterate through every vertice and set a y value to create a pyramid
 	for (int i = 0; i <= (MESH_RES + 1)/2; i++) {
-		GLfloat height = mountainVertices[i][i][0] * 2 * mountainHeight / coordinatePlaneSize;
 
+		// calculate the y value for a given x coordinate on the pyramid
+		GLfloat height = mountV[i][i][0] * 2 * mountainHeight / coordinatePlaneSize;
+
+		// 4 values in a square fashion around the pyramid will have the same height (setting each level with same height)
 		for (int j = i; j < MESH_RES + 1 - i; j++) {
-			mountainVertices[i][j][1] = height;
-			mountainVertices[j][i][1] = height;
-			mountainVertices[MESH_RES-i][j][1] = height;
-			mountainVertices[j][MESH_RES-i][1] = height;
+			mountV[i][j][1] = height;
+			mountV[j][i][1] = height;
+			mountV[MESH_RES-i][j][1] = height;
+			mountV[j][MESH_RES-i][1] = height;
 		}
 	}
 	
+	// get the 4 corners of the pyramid
 	int v1[] = { 0, 0 };
 	int v2[] = { MESH_RES, 0 };
 	int v3[] = { MESH_RES, MESH_RES };
 	int v4[] = { 0, MESH_RES };
 
-	addMidpointHeightNoise(v1, v2, v3, v4, initialRandAmount, maxDepth, mountainVertices);
+	// using the 4 corners, call the recursive function to alter the pyramid's heights
+	addMidpointHeightNoise(v1, v2, v3, v4, initialRandAmount, maxDepth, mountV);
 
-
-
-	for (int i = 0; i < MESH_RES + 1; i++) {
-		for (int j = 0; j < MESH_RES + 1; j++) {
-			printf("VERTICES: (%d, %d): %f, %f, %f\n", i, j, mountainVertices[i][j][0], mountainVertices[i][j][1], mountainVertices[i][j][2]);
-			//printf("(%d, %d): %f, %f, %f\n", i, j, mountainNormals[i][j][0], mountainNormals[i][j][1], mountainNormals[i][j][2]);
-		}
-	}
-
+	// iterate through every polygon on the pyramid and determine the corresponding normal
 	for (int i = 0; i < MESH_RES; i++) {
 		for (int j = 0; j < MESH_RES; j++) {
-			calculateNormal(mountainVertices[i + 1][j], mountainVertices[i][j], mountainPolygonFaceNormals[i][j]);
-			//printf("FACE NORMALS: (%d, %d): %f, %f, %f\n", i, j, mountainPolygonFaceNormals[i][j][0], mountainPolygonFaceNormals[i][j][1], mountainPolygonFaceNormals[i][j][2]);
+			calculateNormal(mountV[i + 1][j], mountV[i][j], mountainPolygonFaceNormals[i][j]);
 		}
 	}
 
-	findMountainVerticeNormals();
-
-	//for (int i = 0; i < MESH_RES + 1; i++) {
-	//	for (int j = 0; j < MESH_RES + 1; j++) {
-	//		//printf("(%d, %d): %f, %f, %f\n", i, j, mountainVertices[i][j][0], mountainVertices[i][j][1], mountainVertices[i][j][2]);
-	//		printf("VERTEX NORMALS: (%d, %d): %f, %f, %f\n", i, j, mountainNormals[i][j][0], mountainNormals[i][j][1], mountainNormals[i][j][2]);
-	//	}
-	//}
+	// calculate each vertice's normal based on the polygons surrounding the vertex
+	findMountainVerticeNormals(mountN);
 }
 
 
@@ -1549,7 +1649,9 @@ void main(int argc, char** argv)
 	initializePropellers();
 
 	// generate mountains and store in an array to be drawn
-	initializeMountains();
+	initializeMountains(mountainVertices, mountainNormals);
+	initializeMountains(mountain2Vertices, mountain2Normals);
+	initializeMountains(mountain3Vertices, mountain3Normals);
 
 	// print the controls on the console for the user
 	printKeyboardControls();
