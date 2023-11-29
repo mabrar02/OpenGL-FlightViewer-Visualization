@@ -32,7 +32,7 @@
 #define PROP_FACE_COUNT 132
 #define CESSNA_OBJECT_COUNT 34
 #define M_PI 3.141592
-#define MESH_RES 32
+#define MESH_RES 40
 
 /* function signature definitions */
 void printKeyboardControls(void);
@@ -136,8 +136,9 @@ GLfloat mountainPolygonFaceNormals[MESH_RES][MESH_RES][3];
 GLfloat mountainNormals[(MESH_RES + 1)][(MESH_RES + 1)][3];
 
 GLfloat mountainHeight = 2;
-GLfloat initialRandAmount = 1.0f;
+GLfloat initialRandAmount = 0.33f;
 
+GLint maxDepth = 6;
 
 /************************************************************************
 
@@ -592,9 +593,9 @@ void findMountainVerticeNormals(void) {
 			}
 
 			// calculate and set average on a component basis
-			mountainNormals[i][j][0] = (GLfloat) resVector[0] / resMagnitude;
-			mountainNormals[i][j][1] = (GLfloat) resVector[1] / resMagnitude;
-			mountainNormals[i][j][2] = (GLfloat) resVector[2] / resMagnitude;
+			mountainNormals[i][j][0] = (GLfloat) resVector[0] / count;
+			mountainNormals[i][j][1] = (GLfloat) resVector[1] / count;
+			mountainNormals[i][j][2] = (GLfloat) resVector[2] / count;
 		}
 	}
 }
@@ -614,7 +615,7 @@ void drawMountains(void) {
 
 	// scale and move our mountain accordingly 
 	glTranslatef(0, 1, 0);
-	glScalef(3, 3, 3);
+	glScalef(8, 3, 8);
 
 	// set color to white to avoid dark textures
 	glColor3f(1.0, 1.0, 1.0);
@@ -677,6 +678,58 @@ void drawMountains(void) {
 	glPopMatrix();
 }
 
+
+/************************************************************************
+
+	Function:		getRandomNumber
+
+	Description:	simple utility function to get a random float number
+					between -n and n
+
+*************************************************************************/
+GLfloat getRandomNumber(GLfloat n) {
+
+	// first get a random float number between 0 and 1, then set the range by doubling, multiplying by n, then subtracting n
+	GLfloat randNum = ((GLfloat)rand() / RAND_MAX) * 2.0f * n - n;
+	return randNum;
+}
+
+
+void addMidpointHeightNoise(int v1[], int v2[], int v3[], int v4[], GLfloat n, int depth, GLfloat vertices[MESH_RES+1][MESH_RES+1][3]) {
+	if (depth == 0) {
+		return;
+	}
+
+	int mid12[] = {(v1[0] + v2[0])/2, (v1[1] + v2[1]) / 2 };
+	int mid23[] = {(v2[0] + v3[0]) / 2, (v2[1] + v3[1]) / 2 };
+	int mid34[] = { (v3[0] + v4[0]) / 2, (v3[1] + v4[1]) / 2 };
+	int mid41[] = { (v4[0] + v1[0]) / 2, (v4[1] + v1[1]) / 2 };
+	int center[] = { (v1[0] + v2[0] + v3[0] + v4[0]) / 4, (v1[1] + v2[1] + v3[1] + v4[1]) / 4 };
+
+	if (depth != maxDepth) {
+		GLfloat r = getRandomNumber(n);
+		vertices[mid12[0]][mid12[1]][1] += r;
+
+		r = getRandomNumber(n);
+		vertices[mid23[0]][mid23[1]][1] += r;
+
+		r = getRandomNumber(n);
+		vertices[mid34[0]][mid34[1]][1] += r;
+
+		r = getRandomNumber(n);
+		vertices[mid41[0]][mid41[1]][1] += r;
+
+		r = getRandomNumber(n);
+		vertices[center[0]][center[1]][1] += r;
+	}
+
+	addMidpointHeightNoise(v1, mid12, center, mid41, n / 2, depth - 1, vertices);
+	addMidpointHeightNoise(mid12, v2, mid23, center, n / 2, depth - 1, vertices);
+	addMidpointHeightNoise(center, mid23, v3, mid34, n / 2, depth - 1, vertices);
+	addMidpointHeightNoise(mid41, center, mid34, v4, n / 2, depth - 1, vertices);
+}
+
+
 /************************************************************************
 
 	Function:		initializeMountains
@@ -692,16 +745,6 @@ void initializeMountains(void) {
 		for (int j = 0; j < MESH_RES + 1; j++) {
 			mountainVertices[i][j][0] = (GLfloat)i * meshSideLength;
 			mountainVertices[i][j][2] = (GLfloat)j * meshSideLength;
-
-			//if (i == MESH_RES / 2 && j == MESH_RES / 2) {
-			//	mountainVertices[i][j][1] = mountainHeight;
-			//}
-			//else
-			//{
-			//	GLfloat dist = sqrt(pow(i - MESH_RES / 2, 2) + pow(j - MESH_RES / 2, 2));
-			//	mountainVertices[i][j][1] = mountainHeight * (1 - dist / (MESH_RES - 1));
-			//	printf("%f\n", mountainVertices[i][j][1]);
-			//}
 		}
 	}
 
@@ -716,20 +759,37 @@ void initializeMountains(void) {
 		}
 	}
 	
-	for (int i = 0; i < MESH_RES + 1; i++) {
-		for (int j = 0; j < MESH_RES + 1; j++) {
-			printf("(%d, %d): %f, %f, %f\n", i, j, mountainVertices[i][j][0], mountainVertices[i][j][1], mountainVertices[i][j][2]);
-		}
-	}
+	int v1[] = { 0, 0 };
+	int v2[] = { MESH_RES, 0 };
+	int v3[] = { MESH_RES, MESH_RES };
+	int v4[] = { 0, MESH_RES };
+
+	addMidpointHeightNoise(v1, v2, v3, v4, initialRandAmount, maxDepth, mountainVertices);
+
+
+
+	//for (int i = 0; i < MESH_RES + 1; i++) {
+	//	for (int j = 0; j < MESH_RES + 1; j++) {
+	//		printf("VERTICES: (%d, %d): %f, %f, %f\n", i, j, mountainVertices[i][j][0], mountainVertices[i][j][1], mountainVertices[i][j][2]);
+	//		//printf("(%d, %d): %f, %f, %f\n", i, j, mountainNormals[i][j][0], mountainNormals[i][j][1], mountainNormals[i][j][2]);
+	//	}
+	//}
 
 	for (int i = 0; i < MESH_RES; i++) {
 		for (int j = 0; j < MESH_RES; j++) {
 			calculateNormal(mountainVertices[i + 1][j], mountainVertices[i][j], mountainPolygonFaceNormals[i][j]);
+			//printf("FACE NORMALS: (%d, %d): %f, %f, %f\n", i, j, mountainPolygonFaceNormals[i][j][0], mountainPolygonFaceNormals[i][j][1], mountainPolygonFaceNormals[i][j][2]);
 		}
 	}
 
-
 	findMountainVerticeNormals();
+
+	//for (int i = 0; i < MESH_RES + 1; i++) {
+	//	for (int j = 0; j < MESH_RES + 1; j++) {
+	//		//printf("(%d, %d): %f, %f, %f\n", i, j, mountainVertices[i][j][0], mountainVertices[i][j][1], mountainVertices[i][j][2]);
+	//		printf("VERTEX NORMALS: (%d, %d): %f, %f, %f\n", i, j, mountainNormals[i][j][0], mountainNormals[i][j][1], mountainNormals[i][j][2]);
+	//	}
+	//}
 }
 
 /************************************************************************
@@ -754,20 +814,7 @@ void myIdle(void) {
 }
 
 
-/************************************************************************
 
-	Function:		getRandomNumber
-
-	Description:	simple utility function to get a random float number 
-					between -n and n
-
-*************************************************************************/
-GLfloat getRandomNumber(GLfloat n) {
-
-	// first get a random float number between 0 and 1, then set the range by doubling, multiplying by n, then subtracting n
-	GLfloat randNum = ((float)rand() / RAND_MAX) * 2.0f * n - n;
-	return randNum;
-}
 
 
 /************************************************************************
