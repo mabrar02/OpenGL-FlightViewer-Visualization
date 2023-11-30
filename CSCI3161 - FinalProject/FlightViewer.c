@@ -43,6 +43,7 @@ void drawPropellers(void);
 void drawSea(void);
 void drawSky(void);
 void drawMountains();
+void drawHUD(void);
 
 /* struct to define polygon shapes for easy storing of individual shapes*/
 typedef struct {
@@ -82,6 +83,7 @@ int seaSkyToggled = 0;
 int mountainToggled = 0;
 int mountainTexturedToggled = 0;
 int fogToggled = 0; 
+int hudToggled = 0;
 
 // position and camera variables
 GLfloat camPos[3] = { 0.0, 4, 10.0 };
@@ -93,7 +95,7 @@ GLfloat forwardAngle = M_PI / 2;
 GLfloat turnAngle = 0;
 GLfloat moveSpeed = 0.05;
 GLfloat speedIncrement = 0.001;
-GLfloat heightIncrement = 0.01;
+GLfloat heightIncrement = 0.03;
 GLfloat turnRate = 0.1;
 
 // propeller movement variables
@@ -217,6 +219,11 @@ void myDisplay(void)
 	// draw cessna (includes propellers)
 	drawCessna();
 
+	if (hudToggled) {
+		drawHUD();
+	}
+
+
 	// swap the drawing buffers
 	glutSwapBuffers();
 }
@@ -234,6 +241,219 @@ void positionCamera(void) {
 	
 	// use separate vector for cameras position and direction of travel to maintain an offset from the cam and plane
 	gluLookAt(camPos[0], camPos[1], camPos[2], forwardVector[0], forwardVector[1], forwardVector[2], 0.0, 1.0, 0.0);
+}
+
+
+/************************************************************************
+
+	Function:		drawHUD
+
+	Description:	function used to draw the HUD overlay when toggled
+
+*************************************************************************/
+void drawHUD(void) {
+
+	// disable lighting to use normal coloring
+	glDisable(GL_LIGHTING);
+
+	// disable depth testing to create a flat overlay
+	glDisable(GL_DEPTH_TEST);
+
+	// regardless if wire frame is toggled, use fill mode
+	glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+
+	// change to projection to change camera view
+	glMatrixMode(GL_PROJECTION);
+
+	// save current projection matrix
+	glPushMatrix();
+
+	// reset projection matrix
+	glLoadIdentity();
+
+	// change camera to a flat 2D ortho camera to make overlay creation easy
+	gluOrtho2D(-1.0, 1.0, -1.0, 1.0);
+
+	// switch to model view to change object positions
+	glMatrixMode(GL_MODELVIEW);
+
+	// save current model view matrix
+	glPushMatrix();
+
+	// reset model view matrix
+	glLoadIdentity();
+
+	// create green overlay
+	glBegin(GL_QUADS);
+	glColor4f(57.0/255.0, 110.0/255.0, 52.0/255.0, 0.25);
+	glVertex2f(-1, -1);
+	glVertex2f(-1, 1);
+	glVertex2f(1, 1);
+	glVertex2f(1, -1);
+	glEnd();
+
+	// variable to keep distances symmetrical
+	GLfloat sidesDist = 0.5;
+
+	// change color and line width for actual HUD elements
+	glColor4f(0, 1, 0, 1);
+	glLineWidth(2);
+
+	// use line mode for our polygons
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+
+
+	// middle green triangle indicator
+	glBegin(GL_TRIANGLES);
+	glVertex2f(0, 0);
+	glVertex2f(-0.01, 0.02);
+	glVertex2f(0.01, 0.02);
+	glEnd();
+
+	// outer box
+	glBegin(GL_LINES);
+
+	// right vertical line
+	glVertex2f(sidesDist, -sidesDist);
+	glVertex2f(sidesDist, sidesDist);
+
+	// right vertical line accents
+	glVertex2f(sidesDist, -sidesDist);
+	glVertex2f(sidesDist + 0.075, -sidesDist);
+	glVertex2f(sidesDist, sidesDist);
+	glVertex2f(sidesDist + 0.075, sidesDist);
+
+	// left vertical line
+	glVertex2f(-sidesDist, -sidesDist);
+	glVertex2f(-sidesDist, sidesDist);
+
+	// left vertical line accents
+	glVertex2f(-sidesDist, -sidesDist);
+	glVertex2f(-sidesDist - 0.075, -sidesDist);
+	glVertex2f(-sidesDist, sidesDist);
+	glVertex2f(-sidesDist - 0.075, sidesDist);
+
+	// increments
+	for (int i = 0; i < 8; i++) {
+		glVertex2f(sidesDist, i * -sidesDist / 4 + sidesDist);
+		glVertex2f(sidesDist + 0.02, i * -sidesDist / 4 + sidesDist);
+
+		glVertex2f(-sidesDist, i * -sidesDist / 4 + sidesDist);
+		glVertex2f(-sidesDist - 0.02, i * -sidesDist / 4 + sidesDist);
+	}
+
+	glEnd();
+
+	// based on the planes height, we will adjust our middle indicator's height as well
+	GLfloat hudLineHeight = forwardVector[1] / 10 - 0.5;
+	
+	// set a min and max for our UI indicator
+	if (hudLineHeight <= -0.5) {
+		hudLineHeight = -0.5;
+	}
+	else if (hudLineHeight >= 0.5) {
+		hudLineHeight = 0.5;
+	}
+
+	// scope transformations for our middle indicators
+	glPushMatrix();
+
+	// rotate about the origin regardless of height
+	glTranslatef(0, hudLineHeight, 0);
+	glRotatef(-45 * turnAngle, 0, 0, 1);
+	glTranslatef(0, -hudLineHeight, 0);
+
+	// middle line indicator
+	glBegin(GL_LINES);
+	glVertex2f(-sidesDist + 0.1, hudLineHeight);
+	glVertex2f(sidesDist - 0.1, hudLineHeight);
+
+	// square lines top left
+	glVertex2f(-sidesDist + 0.3, hudLineHeight + 0.2);
+	glVertex2f(-sidesDist + 0.4, hudLineHeight + 0.2);
+	glVertex2f(-sidesDist + 0.3, hudLineHeight + 0.2);
+	glVertex2f(-sidesDist + 0.3, hudLineHeight + 0.15);
+
+	// square lines top right
+	glVertex2f(sidesDist - 0.3, hudLineHeight + 0.2);
+	glVertex2f(sidesDist - 0.4, hudLineHeight + 0.2);
+	glVertex2f(sidesDist - 0.3, hudLineHeight + 0.2);
+	glVertex2f(sidesDist - 0.3, hudLineHeight + 0.15);
+
+	// square lines bottom left
+	glVertex2f(-sidesDist + 0.3, hudLineHeight - 0.2);
+	glVertex2f(-sidesDist + 0.4, hudLineHeight - 0.2);
+	glVertex2f(-sidesDist + 0.3, hudLineHeight - 0.2);
+	glVertex2f(-sidesDist + 0.3, hudLineHeight - 0.15);
+
+	// square lines bottom right
+	glVertex2f(sidesDist - 0.3, hudLineHeight - 0.2);
+	glVertex2f(sidesDist - 0.4, hudLineHeight - 0.2);
+	glVertex2f(sidesDist - 0.3, hudLineHeight - 0.2);
+	glVertex2f(sidesDist - 0.3, hudLineHeight - 0.15);
+
+	glEnd();
+
+	// grab our current height and create a string value with it to display
+	int len = snprintf(NULL, 0, "%.2f m", forwardVector[1]);
+	char* heightString = malloc(len + 1);
+	snprintf(heightString, len + 1, "%.2f m", forwardVector[1]);
+
+	// set our raster pos just below the middle line indicator
+	glRasterPos2f(-0.02, hudLineHeight - 0.05);
+
+	// display the text 
+	for (int i = 0; i < strlen(heightString); i++) {
+		glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_10, heightString[i]);
+	}
+
+	// return to previous matrix
+	glPopMatrix();
+
+	// scope transformations for the bottom circular indicator
+	glPushMatrix();
+
+	// scale down the indicator and shift it to the bottom
+	glTranslatef(0, -0.75, 0);
+	glScalef(0.175, 0.25, 0.25);
+
+
+	// create a semi circle of lines to look similar to a radar
+	glBegin(GL_LINES);
+	for (int i = 0; i < 17; i++) {
+		GLfloat angleIncrement = (M_PI + M_PI / 6) - i * M_PI / 12;
+		glVertex2f(cos(angleIncrement), sin(angleIncrement));
+		glVertex2f(1.1 * cos(angleIncrement), 1.1 * sin(angleIncrement));
+	}
+
+	// create two small line accents in the middle of the circle indicator
+	glVertex2f(0, 0.05);
+	glVertex2f(0, 0.9);
+	glVertex2f(-0.1, 0.2);
+	glVertex2f(0.1, 0.2);
+
+	glEnd();
+
+	// return to previous matrix
+	glPopMatrix();
+
+
+	// reset back to our original camera and model view matrices
+	glMatrixMode(GL_PROJECTION);
+	glPopMatrix();
+	glMatrixMode(GL_MODELVIEW);
+	glPopMatrix();
+
+	// re-enable lighting and depth testing, as well as setting the polygon mode to the correct mode
+	glEnable(GL_LIGHTING);
+	glEnable(GL_DEPTH_TEST);
+	if (wireframeToggled) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	}
+	else {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	}
+
 }
 
 
@@ -1369,7 +1589,7 @@ void myKeyboard(unsigned char key, int x, int y) {
 			seaSkyToggled = 0;
 		}
 	}
-	else if (key == 'g') {
+	else if (key == 'b') {
 		if (fogToggled == 0) {
 			fogToggled = 1;
 		}
@@ -1392,6 +1612,14 @@ void myKeyboard(unsigned char key, int x, int y) {
 		}
 		else {
 			mountainTexturedToggled = 0;
+		}
+	}
+	else if (key == 'h') {
+		if (hudToggled == 0) {
+			hudToggled = 1;
+		}
+		else {
+			hudToggled = 0;
 		}
 	}
 	
@@ -1418,7 +1646,7 @@ void mySpecialKeyboard(int key, int x, int y) {
 			break;
 		case GLUT_KEY_DOWN:
 			forwardVector[1] -= heightIncrement;
-			camPos[1] += heightIncrement;
+			camPos[1] -= heightIncrement;
 			break;
 		case GLUT_KEY_PAGE_UP:
 			moveSpeed += speedIncrement;
@@ -1678,11 +1906,12 @@ void printKeyboardControls(void)
 {
 	printf("Scene Controls\n-------------------\n\n");
 	printf("f \t: toggle fullscreen\n");
-	printf("g \t: toggle fog\n");
+	printf("b \t: toggle fog\n");
 	printf("m \t: toggle mountains\n");
 	printf("t \t: toggle mountain texture\n");
 	printf("s \t: toggle sea & sky\n");
 	printf("w \t: toggle wire frame\n");
+	printf("h \t: toggle HUD\n");
 	printf("q \t: quit\n\n");
 
 	printf("Camera Controls\n------------------- \n\n");
