@@ -93,18 +93,18 @@ GLfloat forwardAngle = M_PI / 2;
 
 // cesnna movement variables
 GLfloat turnAngle = 0;
-GLfloat moveSpeed = 0.05;
+GLfloat moveSpeed = 0.01;
 GLfloat speedIncrement = 0.001;
 GLfloat heightIncrement = 0.03;
-GLfloat turnRate = 0.1;
+GLfloat turnRate = 0.01;
 
 // propeller movement variables
 GLfloat theta = 0.0;
-GLint propellerSpeed = 2;
+GLint propellerSpeed = 10;
 
 // light variables
 GLfloat lightPos[] = { 0, 20.0, 5, 0.0 };
-GLfloat cessnaShininess = 200.0;
+GLfloat cessnaShininess = 100.0;
 GLfloat cessnaAmbient[] = { 0.1, 0.1, 0.1, 1.0 };
 
 // material variables
@@ -1555,7 +1555,8 @@ void myPassiveMouse(int x, int y) {
 void myKeyboard(unsigned char key, int x, int y) {
 
 	/* If the user presses q, they should quit, w -> toggle the wireframe, f -> toggle the full screen mode
-	* s -> toggle the sea and sky, g -> toggle the fog, m -> toggle the mountains, t -> toggle the mountain texture
+	* s -> toggle the sea and sky, g -> toggle the fog, m -> toggle the mountains, t -> toggle the mountain texture,
+	* h -> toggle the HUD overlay
 	*/
 	if (key == 'q') {
 		exit(0);
@@ -1652,7 +1653,7 @@ void mySpecialKeyboard(int key, int x, int y) {
 			moveSpeed += speedIncrement;
 			break;
 		case GLUT_KEY_PAGE_DOWN:
-			if (moveSpeed - speedIncrement > 0) {
+			if (moveSpeed - speedIncrement > 0.001) {
 				moveSpeed -= speedIncrement;
 			}
 			break;
