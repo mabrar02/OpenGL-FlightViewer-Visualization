@@ -32,7 +32,7 @@
 #define PROP_FACE_COUNT 132
 #define CESSNA_OBJECT_COUNT 34
 #define M_PI 3.141592
-#define MESH_RES 4
+#define MESH_RES 64
 
 /* function signature definitions */
 void printKeyboardControls(void);
@@ -84,8 +84,8 @@ int mountainTexturedToggled = 0;
 int fogToggled = 0; 
 
 // position and camera variables
-GLfloat camPos[3] = { 0.0, 3, 10.0 };
-GLfloat forwardVector[3] = {0.0, 2.25, 7.0};
+GLfloat camPos[3] = { 0.0, 4, 10.0 };
+GLfloat forwardVector[3] = {0.0, 3.25, 7.0};
 GLfloat distOffset = 3.0;
 GLfloat forwardAngle = M_PI / 2;
 
@@ -142,18 +142,22 @@ GLfloat mountain3Normals[(MESH_RES + 1)][(MESH_RES + 1)][3];
 GLfloat mountainPolygonFaceNormals[MESH_RES][MESH_RES][3];
 
 // mountain transformation arrays
-GLfloat mountainScale[3] = { 4, 1, 4 };
-GLfloat mountainTranslation[3] = {0, 0, 0};
+GLfloat mountainScale[3] = { 10, 1, 10};
+GLfloat mountainTranslation[3] = {0, -3, 0};
 
-GLfloat mountain2Scale[3] = { 4, 1, 4 };
-GLfloat mountain2Translation[3] = { -30, 0, -30 };
+GLfloat mountain2Scale[3] = { 10, 0.25, 10 };
+GLfloat mountain2Translation[3] = { -30, -0.25, -30 };
 
-GLfloat mountain3Scale[3] = { 4, 1, 4 };
-GLfloat mountain3Translation[3] = { 30, 0, 30 };
+GLfloat mountain3Scale[3] = { 10, 1, 10 };
+GLfloat mountain3Translation[3] = { 10, -1, 20 };
 
 // mountain variables
-GLfloat mountainHeight = 8;
-GLfloat initialRandAmount = 4;
+GLfloat mountainHeight1 = 8;
+GLfloat mountainHeight2 = 8;
+GLfloat mountainHeight3 = 4;
+GLfloat initialRandMount1 = 2;
+GLfloat initialRandMount2 = 4;
+GLfloat initialRandMount3 = 2;
 GLint maxDepth = 6;
 
 // size of sky and sea
@@ -851,7 +855,7 @@ void addMidpointHeightNoise(int v1[], int v2[], int v3[], int v4[], GLfloat n, i
 					process
 
 *************************************************************************/
-void initializeMountains(GLfloat mountV[MESH_RES+1][MESH_RES+1][3], GLfloat mountN[MESH_RES + 1][MESH_RES + 1][3]) {
+void initializeMountains(GLfloat mountV[MESH_RES+1][MESH_RES+1][3], GLfloat mountN[MESH_RES + 1][MESH_RES + 1][3], GLfloat initialRandAmount, GLfloat mountainHeight) {
 	
 	// divide our flat plane size by the mesh resolution to get each side length for the squares
 	GLfloat meshSideLength = (GLfloat)coordinatePlaneSize / MESH_RES;
@@ -1650,9 +1654,9 @@ void main(int argc, char** argv)
 	initializePropellers();
 
 	// generate mountains and store in an array to be drawn
-	initializeMountains(mountainVertices, mountainNormals);
-	initializeMountains(mountain2Vertices, mountain2Normals);
-	initializeMountains(mountain3Vertices, mountain3Normals);
+	initializeMountains(mountainVertices, mountainNormals, initialRandMount1, mountainHeight1);
+	initializeMountains(mountain2Vertices, mountain2Normals, initialRandMount2, mountainHeight2);
+	initializeMountains(mountain3Vertices, mountain3Normals, initialRandMount3, mountainHeight3);
 
 	// print the controls on the console for the user
 	printKeyboardControls();
